@@ -1,5 +1,5 @@
 {
-  "name": "snap-cast",
+  "name": "snappit",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -14,8 +14,8 @@
   "dependencies": {
     "@arcjet/inspect": "1.0.0-beta.8",
     "@arcjet/next": "1.0.0-beta.8",
-    "@aws-sdk/client-s3": "^3.832.0",
-    "@aws-sdk/s3-request-presigner": "^3.832.0",
+    "@aws-sdk/client-s3": "^3.835.0",
+    "@aws-sdk/s3-request-presigner": "^3.835.0",
     "better-auth": "^1.2.10",
     "clsx": "^2.1.1",
     "dotenv": "^16.5.0",
@@ -34,10 +34,10 @@
     "@types/node": "^20.19.1",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
-    "drizzle-kit": "^0.31.1",
+    "drizzle-kit": "^0.31.2",
     "eslint": "^9.29.0",
     "eslint-config-next": "15.3.1",
-    "prettier": "^3.5.3",
+    "prettier": "^3.6.0",
     "tailwindcss": "^4.1.10",
     "typescript": "^5.8.3"
   }
