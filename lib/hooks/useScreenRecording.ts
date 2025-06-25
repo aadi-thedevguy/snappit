@@ -26,7 +26,9 @@ export const useScreenRecording = () => {
     return () => {
       stopRecording();
       if (state.recordedVideoUrl) URL.revokeObjectURL(state.recordedVideoUrl);
-      audioContextRef.current?.close().catch(console.error);
+      if (audioContextRef.current?.state === "running") {
+        audioContextRef.current.close().catch(console.error);
+      }
     };
   }, [state.recordedVideoUrl]);
 
@@ -41,6 +43,11 @@ export const useScreenRecording = () => {
       recordingDuration: duration,
       isRecording: false,
     }));
+
+    // Clean up audio context if it's still running
+    if (audioContextRef.current?.state === "running") {
+      audioContextRef.current.close().catch(console.error);
+    }
   };
 
   const startRecording = async (withMic = true) => {
@@ -72,16 +79,22 @@ export const useScreenRecording = () => {
         ...(micStream ? [micStream] : []),
       ];
       streamRef.current = combinedStream;
+      startTimeRef.current = Date.now();
 
       mediaRecorderRef.current = setupRecording(combinedStream, {
-        onDataAvailable: (e) => e.data.size && chunksRef.current.push(e.data),
+        onDataAvailable: (e) => {
+          if (e.data.size > 0) {
+            chunksRef.current.push(e.data);
+          }
+        },
         onStop: handleRecordingStop,
       });
 
-      chunksRef.current = [];
-      startTimeRef.current = Date.now();
-      mediaRecorderRef.current.start(1000);
+      // Set recording state after MediaRecorder is created
       setState((prev) => ({ ...prev, isRecording: true }));
+
+      chunksRef.current = [];
+      mediaRecorderRef.current.start(1000);
       return true;
     } catch (error) {
       console.error("Recording error:", error);
