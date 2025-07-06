@@ -5,7 +5,6 @@ type Props = {
     video: {
         title: string;
         createdAt: Date;
-        // publicVideoId: string;
     };
 }
 function PublicVideoDetail({video}: Props) {
@@ -23,17 +22,6 @@ function PublicVideoDetail({video}: Props) {
       </aside>
     </header>
   )
-    {/* <div className="actions">
-      <button
-        onClick={() => {
-          navigator.clipboard.writeText(`${window.location.origin}/share/${video.publicVideoId}`);
-          alert("Link copied to clipboard!");
-        }}
-        className="copy-link-btn"
-      >
-        Copy Link
-      </button>
-    </div> */}
 }
 
 export default PublicVideoDetail

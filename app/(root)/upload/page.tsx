@@ -39,7 +39,6 @@ const UploadPage = () => {
   const [formData, setFormData] = useState<VideoFormValues>({
     title: "",
     description: "",
-    tags: "",
     visibility: "public",
     thumbnailUrl: "",
   });
@@ -167,8 +166,8 @@ const UploadPage = () => {
 
       await saveVideoDetails({
         videoId,
-        // thumbnailUrl: thumbnailCdnUrl,
         ...formData,
+        thumbnailUrl: thumbnailCdnUrl,
         duration: videoDuration,
       });
 

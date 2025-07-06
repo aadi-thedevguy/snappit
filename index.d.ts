@@ -8,12 +8,11 @@ declare interface User {
   id: string;
 }
 
-type VideoFormValues = {
+declare interface VideoFormValues {
   title: string;
   description: string;
-  tags: string;
   visibility: "public" | "private";
-  thumbnail: string;
+  thumbnailUrl: string;
 };
 
 declare interface FormFieldProps {
@@ -41,12 +40,6 @@ declare interface FileInputProps {
   type: "video" | "image";
 }
 
-declare interface VideoFormValues {
-  title: string;
-  description: string;
-  tags: string;
-  visibility: "public" | "private";
-}
 declare interface NavbarProps {
   user: User | undefined;
 }
@@ -79,7 +72,6 @@ declare interface VideoCardProps {
 
 declare interface VideoDetailHeaderProps {
   title: string;
-  createdAt: Date;
   userImg: string | null | undefined;
   username?: string;
   videoId: string;
@@ -87,18 +79,7 @@ declare interface VideoDetailHeaderProps {
   ownerId: string;
   visibility: string;
   thumbnailUrl: string;
-}
-
-declare interface VideoDetailHeaderProps {
-  title: string;
-  createdAt: string;
-  userImg?: string;
-  username?: string;
-  videoId: string;
-  publicVideoId: string;
-  ownerId: string;
-  visibility: string;
-  thumbnailUrl: string;
+  createdAt: Date;
 }
 
 declare interface VideoPlayerProps {
@@ -126,7 +107,6 @@ declare interface VideoDetails {
   title: string;
   description: string;
   thumbnailUrl: string;
-  tags: string | string[];
   visibility: Visibility;
   duration?: number | null;
 }
@@ -142,7 +122,6 @@ declare interface VideoWithUserResult {
     videoUrl: string;
     userId: string;
     views: number;
-    tags: string[];
     visibility: Visibility;
     createdAt: Date;
     updatedAt: Date;
@@ -164,7 +143,6 @@ declare interface VideoObject {
   videoUrl: string;
   userId: string;
   views: number;
-  tags: string[];
   visibility: Visibility;
   createdAt: Date;
   updatedAt: Date;

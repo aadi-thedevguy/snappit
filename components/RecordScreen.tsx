@@ -95,7 +95,7 @@ const RecordScreen = () => {
         router.push("/upload");
         closeModal();
         setIsRedirecting(false);
-      }, 2000);
+      }, 3000);
 
 };
 

@@ -106,7 +106,7 @@ const SharedHeader = ({ subHeader, title, userImg }: SharedHeaderProps) => {
         <div className="search">
           <input
             type="text"
-            placeholder="Search for videos, tags, folders..."
+            placeholder="Search for videos..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
