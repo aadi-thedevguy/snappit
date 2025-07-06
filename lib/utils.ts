@@ -114,25 +114,34 @@ export const generatePagination = (currentPage: number, totalPages: number) => {
   ];
 };
 
-export const getMediaStreams = async (
-  withMic: boolean
-): Promise<MediaStreams> => {
-  const displayStream = await navigator.mediaDevices.getDisplayMedia({
-    video: DEFAULT_VIDEO_CONFIG,
-    audio: true,
-  });
+export const getMediaStreams = async (withMic = true) => {
+  try {
+    const displayStream = await navigator.mediaDevices.getDisplayMedia({
+      video: DEFAULT_VIDEO_CONFIG,
+      audio: true,
+    });
 
-  const hasDisplayAudio = displayStream.getAudioTracks().length > 0;
-  let micStream: MediaStream | null = null;
+    const hasDisplayAudio = displayStream.getAudioTracks().length > 0;
+    let micStream: MediaStream | null = null;
 
-  if (withMic) {
-    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    micStream
-      .getAudioTracks()
-      .forEach((track: MediaStreamTrack) => (track.enabled = true));
+    if (withMic) {
+      try {
+        micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        micStream
+          .getAudioTracks()
+          .forEach((track: MediaStreamTrack) => (track.enabled = true));
+      } catch (error) {
+        console.warn("Microphone permission denied");
+        // Don't throw error, just proceed without mic
+        micStream = null;
+      }
+    }
+
+    return { displayStream, micStream, hasDisplayAudio };
+  } catch (error) {
+    console.error("Error getting media streams:", error);
+    throw error; // Let the caller handle screen recording errors
   }
-
-  return { displayStream, micStream, hasDisplayAudio };
 };
 
 export const createAudioMixer = (

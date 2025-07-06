@@ -8,7 +8,9 @@ import {
   calculateRecordingDuration,
 } from "@/lib/utils";
 
-export const useScreenRecording = () => {
+export function useScreenRecording(
+  onRecordingStatusChange?: (status: { type: string; message: string }) => void
+) {
   const [state, setState] = useState<BunnyRecordingState>({
     isRecording: false,
     recordedBlob: null,
@@ -54,6 +56,11 @@ export const useScreenRecording = () => {
     try {
       stopRecording();
 
+      onRecordingStatusChange?.({
+        type: "starting",
+        message: "Starting recording..."
+      });
+
       const { displayStream, micStream, hasDisplayAudio } =
         await getMediaStreams(withMic);
       const combinedStream = new MediaStream() as ExtendedMediaStream;
@@ -62,17 +69,33 @@ export const useScreenRecording = () => {
         .getVideoTracks()
         .forEach((track: MediaStreamTrack) => combinedStream.addTrack(track));
 
-      audioContextRef.current = new AudioContext();
-      const audioDestination = createAudioMixer(
-        audioContextRef.current,
-        displayStream,
-        micStream,
-        hasDisplayAudio
-      );
+      // Add microphone audio if available
+      if (micStream) {
+        micStream
+          .getAudioTracks()
+          .forEach((track: MediaStreamTrack) => combinedStream.addTrack(track));
+      } else if (withMic) {
+        console.warn("Microphone permission denied, proceeding without audio");
+        onRecordingStatusChange?.({
+          type: "warning",
+          message: "Microphone permission denied. Recording will continue without audio."
+        });
+      }
 
-      audioDestination?.stream
-        .getAudioTracks()
-        .forEach((track: MediaStreamTrack) => combinedStream.addTrack(track));
+      // Only set up audio mixer if we have audio
+      if (micStream || hasDisplayAudio) {
+        audioContextRef.current = new AudioContext();
+        const audioDestination = createAudioMixer(
+          audioContextRef.current,
+          displayStream,
+          micStream,
+          hasDisplayAudio
+        );
+
+        audioDestination?.stream
+          .getAudioTracks()
+          .forEach((track: MediaStreamTrack) => combinedStream.addTrack(track));
+      }
 
       combinedStream._originalStreams = [
         displayStream,
@@ -81,20 +104,27 @@ export const useScreenRecording = () => {
       streamRef.current = combinedStream;
       startTimeRef.current = Date.now();
 
-      mediaRecorderRef.current = setupRecording(combinedStream, {
-        onDataAvailable: (e) => {
-          if (e.data.size > 0) {
-            chunksRef.current.push(e.data);
-          }
-        },
-        onStop: handleRecordingStop,
+      mediaRecorderRef.current = new MediaRecorder(combinedStream, {
+        mimeType: "video/webm",
       });
 
-      // Set recording state after MediaRecorder is created
-      setState((prev) => ({ ...prev, isRecording: true }));
+      mediaRecorderRef.current.ondataavailable = (event: BlobEvent) => {
+        if (event.data.size > 0) {
+          chunksRef.current.push(event.data);
+        }
+      };
 
-      chunksRef.current = [];
-      mediaRecorderRef.current.start(1000);
+      mediaRecorderRef.current.onstop = handleRecordingStop;
+
+      mediaRecorderRef.current.onstart = () => {
+        onRecordingStatusChange?.({
+          type: "recording",
+          message: "Recording in progress...",
+        });
+        setState((prev) => ({ ...prev, isRecording: true }));
+      };
+
+      mediaRecorderRef.current.start();
       return true;
     } catch (error) {
       console.error("Recording error:", error);
