@@ -41,6 +41,7 @@ const UploadPage = () => {
     description: "",
     tags: "",
     visibility: "public",
+    thumbnailUrl: "",
   });
   const video = useFileInput(MAX_VIDEO_SIZE);
   const thumbnail = useFileInput(MAX_THUMBNAIL_SIZE);
@@ -57,7 +58,7 @@ const UploadPage = () => {
         const stored = sessionStorage.getItem("recordedVideo");
         if (!stored) return;
 
-        const { url, name, type, duration } = JSON.parse(stored);
+        const { url, name, type, duration, thumbnailUrl } = JSON.parse(stored);
         const blob = await fetch(url).then((res) => res.blob());
         const file = new File([blob], name, { type, lastModified: Date.now() });
 
@@ -70,8 +71,6 @@ const UploadPage = () => {
           minute: "2-digit",
         });
 
-        const thumbnailUrl = sessionStorage.getItem("thumbnailUrl") || "";
-        console.log(thumbnailUrl);
         setFormData((prev) => ({
           ...prev,
           title: `Snappit - ${formattedDate}`,
@@ -90,6 +89,30 @@ const UploadPage = () => {
           video.handleFileChange({
             target: { files: dataTransfer.files },
           } as ChangeEvent<HTMLInputElement>);
+        }
+
+        if (thumbnailUrl) {
+          try {
+            const response = await fetch(thumbnailUrl);
+            const blob = await response.blob();
+            
+            const thumbnailFile = new File([blob], "thumbnail.jpg", {
+              type: "image/jpeg",
+              lastModified: Date.now()
+            });
+
+            if (thumbnail.inputRef.current) {
+              const dataTransfer = new DataTransfer();
+              dataTransfer.items.add(thumbnailFile);
+              thumbnail.inputRef.current.files = dataTransfer.files;
+
+              thumbnail.handleFileChange({
+                target: { files: dataTransfer.files },
+              } as ChangeEvent<HTMLInputElement>);
+            }
+          } catch (error) {
+            console.error("Error setting thumbnail file:", error);
+          }
         }
 
         if (duration) setVideoDuration(duration);
@@ -144,7 +167,7 @@ const UploadPage = () => {
 
       await saveVideoDetails({
         videoId,
-        thumbnailUrl: thumbnailCdnUrl,
+        // thumbnailUrl: thumbnailCdnUrl,
         ...formData,
         duration: videoDuration,
       });

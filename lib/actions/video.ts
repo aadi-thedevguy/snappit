@@ -14,6 +14,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { auth } from "@/lib/auth";
 import {
   doesTitleMatch,
+  generatePublicVideoUrl,
   getOrderByClause,
   withErrorHandling,
 } from "@/lib/utils";
@@ -135,10 +136,12 @@ export const saveVideoDetails = withErrorHandling(
     // AWS Implementation
     const now = new Date();
     const videoUrl = CDN.VIDEO_URL(videoDetails.videoId);
+    const publicVideoId = generatePublicVideoUrl();
 
     await db.insert(videos).values({
       ...videoDetails,
       videoUrl,
+      publicVideoId,
       userId,
       createdAt: now,
       updatedAt: now,
@@ -149,55 +152,55 @@ export const saveVideoDetails = withErrorHandling(
   }
 );
 
-export const getAllVideos = withErrorHandling(
-  async (
-    searchQuery: string = "",
-    sortFilter?: string,
-    pageNumber: number = 1,
-    pageSize: number = 8
-  ) => {
-    const session = await auth.api.getSession({ headers: await headers() });
-    const currentUserId = session?.user.id;
+// export const getAllVideos = withErrorHandling(
+//   async (
+//     searchQuery: string = "",
+//     sortFilter?: string,
+//     pageNumber: number = 1,
+//     pageSize: number = 8
+//   ) => {
+//     const session = await auth.api.getSession({ headers: await headers() });
+//     const currentUserId = session?.user.id;
 
-    const canSeeTheVideos = or(
-      eq(videos.visibility, "public"),
-      eq(videos.userId, currentUserId!)
-    );
+//     const canSeeTheVideos = or(
+//       eq(videos.visibility, "public"),
+//       eq(videos.userId, currentUserId!)
+//     );
 
-    const whereCondition = searchQuery.trim()
-      ? and(canSeeTheVideos, doesTitleMatch(videos, searchQuery))
-      : canSeeTheVideos;
+//     const whereCondition = searchQuery.trim()
+//       ? and(canSeeTheVideos, doesTitleMatch(videos, searchQuery))
+//       : canSeeTheVideos;
 
-    // Count total for pagination
-    const [{ totalCount }] = await db
-      .select({ totalCount: sql<number>`count(*)` })
-      .from(videos)
-      .where(whereCondition);
-    const totalVideos = Number(totalCount || 0);
-    const totalPages = Math.ceil(totalVideos / pageSize);
+//     // Count total for pagination
+//     const [{ totalCount }] = await db
+//       .select({ totalCount: sql<number>`count(*)` })
+//       .from(videos)
+//       .where(whereCondition);
+//     const totalVideos = Number(totalCount || 0);
+//     const totalPages = Math.ceil(totalVideos / pageSize);
 
-    // Fetch paginated, sorted results
-    const videoRecords = await buildVideoWithUserQuery()
-      .where(whereCondition)
-      .orderBy(
-        sortFilter
-          ? getOrderByClause(sortFilter)
-          : sql`${videos.createdAt} DESC`
-      )
-      .limit(pageSize)
-      .offset((pageNumber - 1) * pageSize);
+//     // Fetch paginated, sorted results
+//     const videoRecords = await buildVideoWithUserQuery()
+//       .where(whereCondition)
+//       .orderBy(
+//         sortFilter
+//           ? getOrderByClause(sortFilter)
+//           : sql`${videos.createdAt} DESC`
+//       )
+//       .limit(pageSize)
+//       .offset((pageNumber - 1) * pageSize);
 
-    return {
-      videos: videoRecords,
-      pagination: {
-        currentPage: pageNumber,
-        totalPages,
-        totalVideos,
-        pageSize,
-      },
-    };
-  }
-);
+//     return {
+//       videos: videoRecords,
+//       pagination: {
+//         currentPage: pageNumber,
+//         totalPages,
+//         totalVideos,
+//         pageSize,
+//       },
+//     };
+//   }
+// );
 
 export const getVideoById = withErrorHandling(async (videoId: string) => {
   const [videoRecord] = await buildVideoWithUserQuery().where(
@@ -206,15 +209,121 @@ export const getVideoById = withErrorHandling(async (videoId: string) => {
   return videoRecord;
 });
 
+export const getVideoByPublicVideoId = withErrorHandling(
+  async (publicVideoId: string) => {
+    const [video] = await db
+      .select({
+        videoId: videos.videoId,
+        publicVideoId: videos.publicVideoId,
+        title: videos.title,
+        description: videos.description,
+        videoUrl: videos.videoUrl,
+        views: videos.views,
+        duration: videos.duration,
+        createdAt: videos.createdAt,
+        updatedAt: videos.updatedAt,
+      })
+      .from(videos)
+      .where(
+        and(
+          eq(videos.publicVideoId, publicVideoId),eq(videos.visibility, "public")
+      )
+    );
+
+    if (!video) return null;
+
+    return {
+      video,
+    };
+  }
+);
+
 export const incrementVideoViews = withErrorHandling(
   async (videoId: string) => {
+
+    await validateWithArcjet(videoId);
+    
+    // Check if this is a public video ID
+    const [video] = await db
+      .select({ videoId: videos.videoId })
+      .from(videos)
+      .where(eq(videos.publicVideoId, videoId));
+
+    // If not found, check if it's a regular video ID
+    const actualVideoId = video?.videoId || videoId;
+
     await db
       .update(videos)
       .set({ views: sql`${videos.views} + 1`, updatedAt: new Date() })
-      .where(eq(videos.videoId, videoId));
+      .where(eq(videos.videoId, actualVideoId));
 
-    revalidatePaths([`/video/${videoId}`]);
+    revalidatePaths([`/video/${actualVideoId}`,`/share/${videoId}`]);
     return {};
+  }
+);
+
+export const getAllVideos = withErrorHandling(
+  async (
+    userIdParameter: string,
+    searchQuery: string = "",
+    sortFilter?: string,
+    pageNumber: number = 1,
+    pageSize: number = 8
+  ) => {
+    const currentUserId = (
+      await auth.api.getSession({ headers: await headers() })
+    )?.user.id;
+    const isOwner = userIdParameter === currentUserId;
+
+    if (!isOwner) {
+      throw new Error("Unauthorized");
+    }
+
+    const [userInfo] = await db
+      .select({
+        id: user.id,
+        name: user.name,
+        image: user.image,
+        email: user.email,
+      })
+      .from(user)
+      .where(eq(user.id, userIdParameter));
+    if (!userInfo) throw new Error("User not found");
+
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const conditions = [
+      eq(videos.userId, userIdParameter),
+      // !isOwner && eq(videos.visibility, "public"),
+      searchQuery.trim() && ilike(videos.title, `%${searchQuery}%`),
+    ].filter(Boolean) as any[];
+
+    const [{ totalCount }] = await db
+      .select({ totalCount: sql<number>`count(*)` })
+      .from(videos)
+      .where(and(...conditions));
+
+    const totalVideos = Number(totalCount || 0);
+    const totalPages = Math.ceil(totalVideos / pageSize);
+
+    const userVideos = await buildVideoWithUserQuery()
+      .where(and(...conditions))
+      .orderBy(
+        sortFilter ? getOrderByClause(sortFilter) : desc(videos.createdAt)
+      )
+      .limit(pageSize)
+      .offset((pageNumber - 1) * pageSize);
+
+    return {
+      user: userInfo,
+      videos: userVideos,
+      count: userVideos.length,
+      pagination: {
+        currentPage: pageNumber,
+        totalPages,
+        totalVideos,
+        pageSize,
+      },
+    };
   }
 );
 
@@ -276,17 +385,18 @@ export const deleteVideo = withErrorHandling(
     const s3VideoKey = videoId;
     await s3.send(
       new DeleteObjectCommand({
-        Bucket: AWS_CONFIG.BUCKET_NAME,
+        Bucket: AWS_CONFIG.BUCKET_NAME, 
         Key: s3VideoKey,
       })
     );
 
     // Delete thumbnail from S3
-    const thumbnailPath = thumbnailUrl.split("thumbnails/")[1];
+    // const thumbnailPath = thumbnailUrl.split("thumbnails/")[1];
     await s3.send(
       new DeleteObjectCommand({
         Bucket: AWS_CONFIG.BUCKET_NAME,
-        Key: `thumbnails/${thumbnailPath}`,
+        Key: thumbnailUrl,
+        // Key: `thumbnails/${thumbnailPath}`,
       })
     );
 

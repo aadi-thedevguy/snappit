@@ -13,6 +13,7 @@ type VideoFormValues = {
   description: string;
   tags: string;
   visibility: "public" | "private";
+  thumbnail: string;
 };
 
 declare interface FormFieldProps {
@@ -82,6 +83,19 @@ declare interface VideoDetailHeaderProps {
   userImg: string | null | undefined;
   username?: string;
   videoId: string;
+  publicVideoId: string;
+  ownerId: string;
+  visibility: string;
+  thumbnailUrl: string;
+}
+
+declare interface VideoDetailHeaderProps {
+  title: string;
+  createdAt: string;
+  userImg?: string;
+  username?: string;
+  videoId: string;
+  publicVideoId: string;
   ownerId: string;
   visibility: string;
   thumbnailUrl: string;
@@ -117,51 +131,11 @@ declare interface VideoDetails {
   duration?: number | null;
 }
 
-declare interface BunnyVideoResponse {
-  guid: string;
-  status: number;
-  encodeProgress?: number;
-}
-
-declare type ApiResponse<T> =
-  | ({ success: true; error: null } & T)
-  | { success: false; error: string };
-
-declare interface ApiFetchOptions {
-  method?: string;
-  headers?: Record<string, string>;
-  body?: object;
-  expectJson?: boolean;
-  bunnyType: "stream" | "storage";
-}
-
-declare interface BunnyStreamApiOptions {
-  method?: string;
-  body?: object;
-}
-
-declare interface VideoUploadUrlResponse {
-  videoId: string;
-  uploadUrl: string;
-  accessKey: string;
-}
-
-declare interface ThumbnailUploadUrlResponse {
-  uploadUrl: string;
-  cdnUrl: string;
-  accessKey: string;
-}
-
-declare interface VideoProcessingStatus {
-  isProcessed: boolean;
-  encodingProgress: number;
-  status: number;
-}
-
 declare interface VideoWithUserResult {
   video: {
     id: string;
     videoId: string;
+    videoPublicId: string;
     title: string;
     description: string;
     thumbnailUrl: string;
@@ -183,6 +157,7 @@ declare interface VideoWithUserResult {
 declare interface VideoObject {
   id: string;
   videoId: string;
+  videoPublicId: string;
   title: string;
   description: string;
   thumbnailUrl: string;

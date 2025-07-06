@@ -15,6 +15,7 @@ const VideoDetailHeader = ({
   userImg,
   username,
   videoId,
+  publicVideoId,
   ownerId,
   visibility,
   thumbnailUrl,
@@ -57,7 +58,7 @@ const VideoDetailHeader = ({
   };
 
   const copyLink = () => {
-    navigator.clipboard.writeText(`${window.location.origin}/video/${videoId}`);
+    navigator.clipboard.writeText(`${window.location.origin}/share/${publicVideoId}`);
     setCopied(true);
   };
 

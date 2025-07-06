@@ -6,8 +6,10 @@ import { getVideoById } from "@/lib/actions/video";
 const page = async ({ params }: Params) => {
   const { videoId } = await params;
 
-  const { user, video } = await getVideoById(videoId);
-  if (!video) redirect("/404");
+  const videoData = await getVideoById(videoId);
+  if (!videoData) redirect("/404");
+
+  const { user, video } = videoData;
 
   return (
     <main className="wrapper page">
@@ -17,6 +19,7 @@ const page = async ({ params }: Params) => {
         userImg={user?.image}
         username={user?.name}
         videoId={video.videoId}
+        publicVideoId={video.publicVideoId ?? ""}
         ownerId={video.userId}
         visibility={video.visibility}
         thumbnailUrl={video.thumbnailUrl}

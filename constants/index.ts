@@ -16,13 +16,6 @@ export const CDN = {
     `${AWS_CONFIG.CLOUDFRONT_BASE_URL}/${thumbnailId}`,
 };
 
-// Video Processing Configuration
-export const AWS_VIDEO_PROCESSING = {
-  PRESET_ID: "1351620000001-100070", // Standard preset ID for AWS MediaConvert
-  QUEUE_NAME: "Default", // Default AWS MediaConvert queue
-  OUTPUT_BUCKET: `${AWS_CONFIG.BUCKET_NAME}/processed`,
-};
-
 // Video Configuration
 export const DEFAULT_VIDEO_CONFIG = {
   width: { ideal: 1920 },
@@ -47,15 +40,10 @@ export const DEFAULT_RECORDING_CONFIG = {
   frameRate: 30,
 };
 
-// Emoji Constants
-export const emojis = ["😂", "😍", "👍"];
-
 // Filter Options
 export const filterOptions = [
   "Most Viewed",
   "Most Recent",
-  "Most Liked",
-  "Most Commented",
 ];
 
 export const visibilities: Visibility[] = ["public", "private"];
@@ -64,6 +52,7 @@ export const ICONS = {
   record: "/assets/icons/record.svg",
   close: "/assets/icons/close.svg",
   upload: "/assets/icons/upload.svg",
+  loaderCircle: "/assets/icons/loader-circle.svg",
 };
 
 export const initialVideoState = {

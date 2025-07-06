@@ -4,8 +4,29 @@ import { ilike, sql } from "drizzle-orm";
 import { videos } from "@/drizzle/schema";
 import { DEFAULT_VIDEO_CONFIG, DEFAULT_RECORDING_CONFIG } from "@/constants";
 
+export const formatDuration = (duration: number): string => {
+  const hours = Math.floor(duration / 3600);
+  const minutes = Math.floor((duration % 3600) / 60);
+  const seconds = duration % 60;
+
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+  }
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+};
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
+}
+
+export function generatePublicVideoUrl() {
+  const str =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
+  for (let i = 0; i < 9; i++) {
+    result += str.charAt(Math.floor(Math.random() * str.length));
+  }
+  return result;
 }
 
 export const updateURLParams = (
@@ -32,48 +53,6 @@ export const getEnv = (key: string): string => {
   const value = process.env[key];
   if (!value) throw new Error(`Missing required env: ${key}`);
   return value;
-};
-
-// API fetch helper with AWS support
-export const apiFetch = async <T = Record<string, unknown>>(
-  url: string,
-  options: Omit<ApiFetchOptions, "bunnyType"> & {
-    awsType?: "s3" | "mediaconvert";
-  }
-): Promise<T> => {
-  const {
-    method = "GET",
-    headers = {},
-    body,
-    expectJson = true,
-    awsType,
-  } = options;
-
-  const requestHeaders = {
-    ...headers,
-    ...(awsType === "s3" && {
-      "x-amz-acl": "public-read",
-      "content-type": body ? "application/json" : "",
-    }),
-  };
-
-  const requestOptions: RequestInit = {
-    method,
-    headers: requestHeaders,
-    ...(body && { body: JSON.stringify(body) }),
-  };
-
-  const response = await fetch(url, requestOptions);
-
-  if (!response.ok) {
-    throw new Error(`API error ${response.text()}`);
-  }
-
-  if (method === "DELETE" || !expectJson) {
-    return true as T;
-  }
-
-  return await response.json();
 };
 
 // Higher order function to handle errors

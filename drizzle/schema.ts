@@ -7,6 +7,7 @@ import {
   uuid,
   integer,
   pgTableCreator,
+  index,
 } from "drizzle-orm/pg-core";
 
 /**
@@ -69,6 +70,7 @@ export const verification = createTable("verification", {
 
 export const videos = createTable("videos", {
   id: uuid("id").primaryKey().defaultRandom().unique(),
+  publicVideoId: text("public_video_id").unique(),
   title: text("title").notNull(),
   description: text("description").notNull(),
   videoUrl: text("video_url").notNull(),
@@ -82,7 +84,9 @@ export const videos = createTable("videos", {
   duration: integer("duration"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (table) => ({
+  publicVideoIdIndex: index("public_video_id_idx").on(table.publicVideoId)
+}));
 
 export const schema = {
   user,

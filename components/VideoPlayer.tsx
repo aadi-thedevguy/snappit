@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { Suspense } from "react";
 import ReactPlayer from "react-player";
 import { useEffect, useState } from "react";
 import { incrementVideoViews } from "@/lib/actions/video";
@@ -50,11 +50,12 @@ const VideoPlayer = ({
 
   return (
     <div>
-      <ReactPlayer
-        url={videoUrl}
-        controls
-        playsInline
-        controlsList="nodownload"
+      <Suspense fallback={<div>Loading...</div>}>
+        <ReactPlayer
+          url={videoUrl}
+          controls
+          playsInline
+          controlsList="nodownload"
         loading="lazy"
         title="Video player"
         width="100%"
@@ -94,7 +95,7 @@ const VideoPlayer = ({
         preload="auto"
         playbackRate={state.playbackRate}
       />
-
+      </Suspense>
       {/* <div className="controls-container">
         <div className="speed-controls">
           <button

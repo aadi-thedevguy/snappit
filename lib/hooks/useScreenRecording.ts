@@ -45,9 +45,9 @@ export const useScreenRecording = () => {
     }));
 
     // Clean up audio context if it's still running
-    if (audioContextRef.current?.state === "running") {
-      audioContextRef.current.close().catch(console.error);
-    }
+    // if (audioContextRef.current?.state === "running") {
+    //   audioContextRef.current.close().catch(console.error);
+    // }
   };
 
   const startRecording = async (withMic = true) => {
