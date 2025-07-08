@@ -90,7 +90,7 @@ const VideoDetailHeader = ({
           <button onClick={() => router.push(`/profile/${ownerId}`)}>
             <ImageWithFallback
               src={userImg ?? ""}
-              alt="Jason"
+              alt="User"
               width={24}
               height={24}
               className="rounded-full"
