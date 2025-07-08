@@ -38,16 +38,24 @@ const SignIn = () => {
               seconds
             </p>
             <article>
-              <Image
-                src="https://www.thedevguy.in/images/avatar1.webp"
-                alt="Aditya"
-                width={64}
-                height={64}
-                className="rounded-full"
-              />
               <div>
-                <h2>Aditya Khare</h2>
-                <p>Full Stack Developer</p>
+                <p>Made with ❤️ by</p>
+                <Image
+                  src="https://www.thedevguy.in/images/avatar1.webp"
+                  alt="Aditya"
+                  width={64}
+                  height={64}
+                  className="rounded-full"
+                />
+                <h2>
+                  <a
+                    href="https://x.com/Aadi__khare"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    @aadi_thedevguy
+                  </a>
+                </h2>
               </div>
             </article>
           </section>
