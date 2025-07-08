@@ -1,5 +1,4 @@
 "use client";
-import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
@@ -9,6 +8,7 @@ import { filterOptions } from "@/constants";
 import ImageWithFallback from "./ImageWithFallback";
 import DropdownList from "./DropdownList";
 import { updateURLParams } from "@/lib/utils";
+import { ChevronDown, MenuIcon, Search, Upload } from "lucide-react";
 
 const SharedHeader = ({ subHeader, title, userImg }: SharedHeaderProps) => {
   const router = useRouter();
@@ -54,20 +54,10 @@ const SharedHeader = ({ subHeader, title, userImg }: SharedHeaderProps) => {
   const renderFilterTrigger = () => (
     <div className="filter-trigger">
       <figure>
-        <Image
-          src="/assets/icons/hamburger.svg"
-          alt="hamburger"
-          width={14}
-          height={14}
-        />
+        <MenuIcon className="w-4 h-4" />
         <span>{selectedFilter}</span>
       </figure>
-      <Image
-        src="/assets/icons/arrow-down.svg"
-        alt="arrow-down"
-        width={20}
-        height={20}
-      />
+      <ChevronDown className="w-4 h-4" />
     </div>
   );
 
@@ -91,12 +81,7 @@ const SharedHeader = ({ subHeader, title, userImg }: SharedHeaderProps) => {
         </figure>
         <aside>
           <Link href="/upload">
-            <Image
-              src="/assets/icons/upload.svg"
-              alt="upload"
-              width={16}
-              height={16}
-            />
+            <Upload className="w-4 h-4" />
             <span>Upload a video</span>
           </Link>
           <RecordScreen />
@@ -110,12 +95,7 @@ const SharedHeader = ({ subHeader, title, userImg }: SharedHeaderProps) => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <Image
-            src="/assets/icons/search.svg"
-            alt="search"
-            width={16}
-            height={16}
-          />
+          <Search className="w-4 h-4" />
         </div>
         <DropdownList
           options={filterOptions}

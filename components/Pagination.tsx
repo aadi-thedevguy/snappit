@@ -1,6 +1,6 @@
 "use client";
 import { cn, generatePagination, updateURLParams } from "@/lib/utils";
-import Image from "next/image";
+import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 type PaginationProps = {
@@ -47,12 +47,7 @@ const Pagination = ({
         disabled={currentPage === 1}
         aria-disabled={currentPage === 1}
       >
-        <Image
-          src="/assets/icons/arrow-left.svg"
-          alt="Previous"
-          width={16}
-          height={16}
-        />
+        <ArrowLeftIcon className="w-4 h-4" />
         Previous
       </button>
 
@@ -83,12 +78,7 @@ const Pagination = ({
         aria-disabled={currentPage === totalPages}
       >
         Next
-        <Image
-          src="/assets/icons/arrow-right.svg"
-          alt="next"
-          width={16}
-          height={16}
-        />
+        <ArrowRightIcon className="w-4 h-4" />
       </button>
     </section>
   );

@@ -3,6 +3,7 @@ import Image from "next/image";
 import ImageWithFallback from "./ImageWithFallback";
 import Link from "next/link";
 import { useState } from "react";
+import { Check, EyeIcon, LinkIcon } from "lucide-react";
 
 const VideoCard = ({
   id,
@@ -52,12 +53,7 @@ const VideoCard = ({
             </figcaption>
           </figure>
           <aside>
-            <Image
-              src="/assets/icons/eye.svg"
-              alt="views"
-              width={16}
-              height={16}
-            />
+            <EyeIcon className="w-4 h-4" />
             <span>{views}</span>
           </aside>
         </div>
@@ -71,17 +67,18 @@ const VideoCard = ({
         </h2>
       </article>
       <button onClick={handleCopy} className="copy-btn">
-        <Image
-          src={
-            copied ? "/assets/icons/checkmark.svg" : "/assets/icons/link.svg"
-          }
-          alt="Copy Link"
-          width={18}
-          height={18}
-        />
+        {copied ? (
+          <Check className="w-4 h-4 text-green-600" />
+        ) : (
+          <LinkIcon className="w-4 h-4" />
+        )}
       </button>
       {duration && (
-        <div className="duration">{Math.ceil(duration / 60)}min</div>
+        <div className="duration">
+          {duration < 60
+            ? `00:${duration}`
+            : `${Math.floor(duration / 60)}:${duration % 60}`}
+        </div>
       )}
     </Link>
   );

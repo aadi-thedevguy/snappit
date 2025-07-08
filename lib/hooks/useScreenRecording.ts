@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from "react";
 import {
   getMediaStreams,
   createAudioMixer,
-  setupRecording,
   cleanupRecording,
   createRecordingBlob,
   calculateRecordingDuration,
@@ -45,11 +44,6 @@ export function useScreenRecording(
       recordingDuration: duration,
       isRecording: false,
     }));
-
-    // Clean up audio context if it's still running
-    // if (audioContextRef.current?.state === "running") {
-    //   audioContextRef.current.close().catch(console.error);
-    // }
   };
 
   const startRecording = async (withMic = true) => {
@@ -58,7 +52,7 @@ export function useScreenRecording(
 
       onRecordingStatusChange?.({
         type: "starting",
-        message: "Starting recording..."
+        message: "Starting recording...",
       });
 
       const { displayStream, micStream, hasDisplayAudio } =
@@ -78,7 +72,8 @@ export function useScreenRecording(
         console.warn("Microphone permission denied, proceeding without audio");
         onRecordingStatusChange?.({
           type: "warning",
-          message: "Microphone permission denied. Recording will continue without audio."
+          message:
+            "Microphone permission denied. Recording will continue without audio.",
         });
       }
 
@@ -160,4 +155,4 @@ export function useScreenRecording(
     stopRecording,
     resetRecording,
   };
-};
+}

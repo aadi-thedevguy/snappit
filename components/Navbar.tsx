@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { authClient } from "@/lib/auth-client";
 import ImageWithFallback from "./ImageWithFallback";
+import { LogOutIcon } from "lucide-react";
 const Navbar = () => {
   const { data: session } = authClient.useSession();
   const user = session?.user;
@@ -43,12 +44,7 @@ const Navbar = () => {
               }}
               className="cursor-pointer"
             >
-              <Image
-                src="/assets/icons/logout.svg"
-                alt="logout"
-                width={24}
-                height={24}
-              />
+              <LogOutIcon className="w-5 h-5 text-sky-500" />
             </button>
           </figure>
         )}

@@ -21,6 +21,7 @@ import {
 import { CDN, AWS_CONFIG } from "@/constants";
 import aj, { fixedWindow, request } from "../arcjet";
 import { getEnv } from "@/lib/utils";
+import { view } from "drizzle-orm/sqlite-core";
 
 // AWS Configuration
 const AWS_ACCESS_KEY_ID = getEnv("AWS_ACCESS_KEY_ID");
@@ -176,7 +177,8 @@ export const getVideoByPublicVideoId = withErrorHandling(
       .from(videos)
       .where(
         and(
-          eq(videos.publicVideoId, publicVideoId), eq(videos.visibility, "public")
+          eq(videos.publicVideoId, publicVideoId),
+          eq(videos.visibility, "public")
         )
       );
 
@@ -190,7 +192,6 @@ export const getVideoByPublicVideoId = withErrorHandling(
 
 export const incrementVideoViews = withErrorHandling(
   async (videoId: string) => {
-
     await validateWithArcjet(videoId);
 
     // Check if this is a public video ID
@@ -291,10 +292,10 @@ export const updateVideoVisibility = withErrorHandling(
 
 export const deleteVideo = withErrorHandling(
   async (videoId: string, thumbnailUrl: string) => {
-    
     // Delete video and thumbnail from S3
     const s3VideoKey = videoId;
-    const thumbnailPath = thumbnailUrl.split("/")[thumbnailUrl.split("/").length - 1]; // get the path after the last slash
+    const thumbnailPath =
+      thumbnailUrl.split("/")[thumbnailUrl.split("/").length - 1]; // get the path after the last slash
 
     await Promise.all([
       s3.send(

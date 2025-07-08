@@ -13,7 +13,7 @@ declare interface VideoFormValues {
   description: string;
   visibility: "public" | "private";
   thumbnailUrl: string;
-};
+}
 
 declare interface FormFieldProps {
   id: string;
@@ -92,6 +92,7 @@ declare interface VideoInfoProps {
   description: string;
   videoId: string;
   videoUrl: string;
+  shareable?: boolean;
 }
 
 declare interface ImageWithFallbackProps extends Omit<ImageProps, "src"> {
@@ -196,7 +197,7 @@ declare interface DropdownListProps {
 }
 
 declare interface EmptyStateProps {
-  icon: string;
+  icon: ReactNode;
   title: string;
   description: string;
 }

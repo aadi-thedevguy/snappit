@@ -1,13 +1,21 @@
 "use client";
-import { daysAgo } from "@/lib/utils";
-import { deleteVideo, updateVideoVisibility } from "@/lib/actions/video";
-import Image from "next/image";
+
 import React, { useState } from "react";
+import {
+  Check,
+  ChevronDown,
+  EyeIcon,
+  LinkIcon,
+  Loader2,
+  Trash,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { visibilities } from "@/constants";
 import DropdownList from "./DropdownList";
 import ImageWithFallback from "./ImageWithFallback";
+import { daysAgo } from "@/lib/utils";
+import { deleteVideo, updateVideoVisibility } from "@/lib/actions/video";
 
 const VideoDetailHeader = ({
   title,
@@ -58,28 +66,19 @@ const VideoDetailHeader = ({
   };
 
   const copyLink = () => {
-    navigator.clipboard.writeText(`${window.location.origin}/share/${publicVideoId}`);
+    navigator.clipboard.writeText(
+      `${window.location.origin}/share/${publicVideoId}`
+    );
     setCopied(true);
   };
 
   const TriggerVisibility = (
     <div className="visibility-trigger">
       <div>
-        <Image
-          src="/assets/icons/eye.svg"
-          alt="Views"
-          width={16}
-          height={16}
-          className="mt-0.5"
-        />
+        <EyeIcon className="w-4 h-4 mt-0.5" />
         <p>{visibilityState}</p>
       </div>
-      <Image
-        src="/assets/icons/arrow-down.svg"
-        alt="Arrow Down"
-        width={16}
-        height={16}
-      />
+      <ChevronDown className="w-4 h-4 mt-0.5" />
     </div>
   );
 
@@ -99,21 +98,20 @@ const VideoDetailHeader = ({
             <h2>{username ?? "Guest"}</h2>
           </button>
           <figcaption>
-            <span className="mt-1">・</span>
-            <p>{daysAgo(createdAt)}</p>
+            <p>
+              <span className="mt-1">・</span>
+              <span>{daysAgo(createdAt)}</span>
+            </p>
           </figcaption>
         </figure>
       </aside>
       <aside className="cta">
         <button onClick={copyLink}>
-          <Image
-            src={
-              copied ? "/assets/images/checked.png" : "/assets/icons/link.svg"
-            }
-            alt="Copy Link"
-            width={24}
-            height={24}
-          />
+          {copied ? (
+            <Check className="w-6 h-6 text-green-600" />
+          ) : (
+            <LinkIcon className="w-6 h-6" />
+          )}
         </button>
         {isOwner && (
           <div className="user-btn">
@@ -122,7 +120,12 @@ const VideoDetailHeader = ({
               onClick={handleDelete}
               disabled={isDeleting}
             >
-              {isDeleting ? "Deleting..." : "Delete video"}
+              {isDeleting ? "Deleting..." : "Delete"}
+              {isDeleting ? (
+                <Loader2 className="w-4 h-4 animate-spin inline-block ml-1" />
+              ) : (
+                <Trash className="w-4 h-4 inline-block ml-1" />
+              )}
             </button>
             <div className="bar" />
             {isUpdating ? (

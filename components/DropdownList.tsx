@@ -1,9 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { useState } from "react";
 
 import { cn } from "@/lib/utils";
+import { CheckIcon } from "lucide-react";
 
 const DropdownList = ({
   options,
@@ -35,14 +35,7 @@ const DropdownList = ({
               onClick={() => handleOptionClick(option)}
             >
               {option}
-              {selectedOption === option && (
-                <Image
-                  src="/assets/icons/check.svg"
-                  alt="check"
-                  width={16}
-                  height={16}
-                />
-              )}
+              {selectedOption === option && <CheckIcon className="w-4 h-4" />}
             </li>
           ))}
         </ul>

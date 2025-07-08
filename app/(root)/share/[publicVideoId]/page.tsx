@@ -26,6 +26,7 @@ const page = async ({ params }: Params) => {
           description={video.description}
           videoId={video.videoId}
           videoUrl={video.videoUrl}
+          shareable={true}
         />
       </section>
     </main>

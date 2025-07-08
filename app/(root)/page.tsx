@@ -4,6 +4,7 @@ import { getAllVideos } from "@/lib/actions/video";
 import { EmptyState, Pagination, SharedHeader, VideoCard } from "@/components";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import { VideoIcon } from "lucide-react";
 
 const ProfilePage = async ({ searchParams }: ParamsWithSearch) => {
   const { query, filter, page } = await searchParams;
@@ -49,7 +50,7 @@ const ProfilePage = async ({ searchParams }: ParamsWithSearch) => {
         </section>
       ) : (
         <EmptyState
-          icon="/assets/icons/video.svg"
+          icon={<VideoIcon className="w-10 h-10 text-sky-500" />}
           title="No Videos Available Yet"
           description="Video will show up here once you upload them."
         />
@@ -62,7 +63,6 @@ const ProfilePage = async ({ searchParams }: ParamsWithSearch) => {
           filterString={filter}
         />
       )}
-
     </main>
   );
 };

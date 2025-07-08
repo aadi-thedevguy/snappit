@@ -1,3 +1,4 @@
+import { Upload, X } from "lucide-react";
 import Image from "next/image";
 
 const FileInput = ({
@@ -24,12 +25,7 @@ const FileInput = ({
 
     {!previewUrl ? (
       <figure onClick={() => inputRef.current?.click()}>
-        <Image
-          src="/assets/icons/upload.svg"
-          alt="Upload Icon"
-          width={24}
-          height={24}
-        />
+        <Upload className="w-4 h-4" />
         <p>click to upload your {id}</p>
       </figure>
     ) : (
@@ -40,12 +36,7 @@ const FileInput = ({
           <Image src={previewUrl} alt={`Selected ${id}`} fill />
         )}
         <button type="button" onClick={onReset}>
-          <Image
-            src="/assets/icons/close.svg"
-            alt="Close Icon"
-            width={16}
-            height={16}
-          />
+          <X className="w-4 h-4 " />
         </button>
         <p>{file?.name}</p>
       </div>

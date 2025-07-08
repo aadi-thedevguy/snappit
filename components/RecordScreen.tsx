@@ -1,10 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { useScreenRecording } from "@/lib/hooks/useScreenRecording";
-import { ICONS } from "@/constants";
+import { Loader, Upload, VideoIcon, VideoOffIcon, X } from "lucide-react";
 
 const RecordScreen = () => {
   const router = useRouter();
@@ -30,7 +29,10 @@ const RecordScreen = () => {
       videoRef.current.src = recordedVideoUrl;
   };
 
-  const captureThumbnail = (video: HTMLVideoElement, canvas: HTMLCanvasElement) => {
+  const captureThumbnail = (
+    video: HTMLVideoElement,
+    canvas: HTMLCanvasElement
+  ) => {
     const ctx = canvas.getContext("2d");
     if (!ctx) {
       console.error("Could not get canvas context");
@@ -41,7 +43,7 @@ const RecordScreen = () => {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      
+
       // Create a thumbnail from the canvas
       const thumbnailData = canvas.toDataURL("image/jpeg");
 
@@ -62,47 +64,46 @@ const RecordScreen = () => {
 
   const goToUpload = () => {
     if (!recordedBlob || !videoRef.current || !canvasRef.current) return;
-    
+
     const url = URL.createObjectURL(recordedBlob);
     let thumbnailData: string | undefined;
     const video = videoRef.current;
     video.src = url;
     setIsRedirecting(true);
 
-        const canvas = canvasRef.current;
-        if (!canvas) {
-          console.error("Canvas ref not available");
-          throw new Error("Canvas element not available");
-        }
-        setTimeout(() => {
-          thumbnailData = captureThumbnail(video, canvas);
-        
-        const videoData = {
-          url,
-          name: "screen-recording.webm",
-          type: recordedBlob.type,
-          size: recordedBlob.size,
-          duration: recordingDuration || 0,
-          thumbnailUrl: thumbnailData,
-        };
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      console.error("Canvas ref not available");
+      throw new Error("Canvas element not available");
+    }
+    setTimeout(() => {
+      thumbnailData = captureThumbnail(video, canvas);
 
-        if (!thumbnailData) {
-          console.error("Thumbnail not generated");
-          return;
-        }
-        
-        sessionStorage.setItem("recordedVideo", JSON.stringify(videoData));
-        router.push("/upload");
-        closeModal();
-        setIsRedirecting(false);
-      }, 3000);
+      const videoData = {
+        url,
+        name: "screen-recording.webm",
+        type: recordedBlob.type,
+        size: recordedBlob.size,
+        duration: recordingDuration || 0,
+        thumbnailUrl: thumbnailData,
+      };
 
-};
+      if (!thumbnailData) {
+        console.error("Thumbnail not generated");
+        return;
+      }
+
+      sessionStorage.setItem("recordedVideo", JSON.stringify(videoData));
+      router.push("/upload");
+      closeModal();
+      setIsRedirecting(false);
+    }, 3000);
+  };
 
   return (
     <div className="record">
       <button onClick={() => setIsOpen(true)} className="primary-btn">
-        <Image src={ICONS.record} alt="record" width={16} height={16} />
+        <VideoIcon className="w-5 h-5 text-white" />
         <span className="truncate">Record a video</span>
       </button>
 
@@ -113,7 +114,7 @@ const RecordScreen = () => {
             <figure>
               <h3>Screen Recording</h3>
               <button onClick={closeModal}>
-                <Image src={ICONS.close} alt="Close" width={20} height={20} />
+                <X className="w-5 h-5" />
               </button>
             </figure>
 
@@ -133,23 +134,13 @@ const RecordScreen = () => {
             <div className="record-box">
               {!isRecording && !recordedVideoUrl && (
                 <button onClick={handleStart} className="record-start">
-                  <Image
-                    src={ICONS.record}
-                    alt="record"
-                    width={16}
-                    height={16}
-                  />
+                  <VideoIcon className="w-4 h-4 text-white" />
                   Record
                 </button>
               )}
               {isRecording && (
                 <button onClick={stopRecording} className="record-stop">
-                  <Image
-                    src={ICONS.record}
-                    alt="record"
-                    width={16}
-                    height={16}
-                  />
+                  <VideoOffIcon className="w-4 h-4 text-white" />
                   Stop Recording
                 </button>
               )}
@@ -158,18 +149,20 @@ const RecordScreen = () => {
                   <button onClick={recordAgain} className="record-again">
                     Record Again
                   </button>
-                  <button onClick={goToUpload} disabled={isRedirecting} className="record-upload">
-                    <Image
-                      src={isRedirecting ? ICONS.loaderCircle : ICONS.upload}
-                      alt="Upload"
-                      className={isRedirecting ? "animate-spin" : ""}
-                      width={16}
-                      height={16}
-                    />
+                  <button
+                    onClick={goToUpload}
+                    disabled={isRedirecting}
+                    className="record-upload"
+                  >
+                    {isRedirecting ? (
+                      <Loader className="w-4 h-4 text-white animate-spin" />
+                    ) : (
+                      <Upload className="w-4 h-4 text-white" />
+                    )}
                     {isRedirecting ? "Uploading..." : "Continue to Upload"}
                   </button>
                   {/* Hidden canvas for thumbnail generation */}
-                  <canvas ref={canvasRef} style={{ display: 'none' }} />
+                  <canvas ref={canvasRef} style={{ display: "none" }} />
                 </>
               )}
             </div>

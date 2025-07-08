@@ -41,19 +41,9 @@ export const DEFAULT_RECORDING_CONFIG = {
 };
 
 // Filter Options
-export const filterOptions = [
-  "Most Viewed",
-  "Most Recent",
-];
+export const filterOptions = ["Most Viewed", "Most Recent"];
 
 export const visibilities: Visibility[] = ["public", "private"];
-
-export const ICONS = {
-  record: "/assets/icons/record.svg",
-  close: "/assets/icons/close.svg",
-  upload: "/assets/icons/upload.svg",
-  loaderCircle: "/assets/icons/loader-circle.svg",
-};
 
 export const initialVideoState = {
   isLoaded: false,

@@ -221,7 +221,8 @@
     .list-item {
       @apply px-3 py-2.5 text-sm font-medium -tracking-[0.8px] relative text-dark-100 cursor-pointer hover:bg-sky-100 hover:text-white transition-colors duration-200 ease-in-out rounded-md;
 
-      img {
+      img,
+      svg {
         @apply absolute right-3 top-1/2 -translate-y-1/2;
       }
     }
@@ -411,7 +412,8 @@
           .record-upload {
             @apply py-2.5 px-6 bg-sky-100 text-white rounded-4xl font-medium flex items-center gap-2;
 
-            img {
+            img,
+            svg {
               @apply brightness-0 invert;
             }
           }
@@ -466,7 +468,8 @@
           @apply border border-gray-20 py-2 pl-8 pr-5 text-dark-100 text-sm font-normal placeholder:text-gray-100 w-full rounded-[18px] focus:outline-sky-100;
         }
 
-        img {
+        img,
+        svg {
           @apply absolute top-1/2 left-3 -translate-y-1/2;
         }
       }

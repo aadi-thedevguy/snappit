@@ -3,22 +3,18 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 
 const VideoInfo = ({
-  createdAt,
   description,
   videoId,
   videoUrl,
   title,
+  shareable,
 }: VideoInfoProps) => {
   const [info, setInfo] = useState("metadata");
 
   const metaDatas = [
     {
       label: "Video title",
-      value: `${title} - ${new Date(createdAt).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      })}`,
+      value: title,
     },
     {
       label: "Video description",
@@ -34,9 +30,16 @@ const VideoInfo = ({
     },
   ];
 
+  // Filter out Video id and Video url if shareable is true
+  const filteredMetaDatas = shareable
+    ? metaDatas.filter(
+        (item) => item.label !== "Video id" && item.label !== "Video url"
+      )
+    : metaDatas;
+
   const renderMetadata = () => (
     <div className="metadata">
-      {metaDatas.map(({ label, value }, index) => (
+      {filteredMetaDatas.map(({ label, value }, index) => (
         <article key={index}>
           <h2>{label}</h2>
           <p
