@@ -4,7 +4,6 @@ import React, { Suspense, useEffect, useRef, useState } from "react";
 import { formatDuration } from "@/lib/utils";
 import dynamic from "next/dynamic";
 import { incrementVideoViews } from "@/lib/actions/video";
-import { initialVideoState } from "@/constants";
 import {
   Play,
   Pause,
@@ -49,7 +48,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   duration,
 }) => {
   const [state, setState] = useState<VideoPlayerState>({
-    ...initialVideoState,
+    isLoaded: false,
+    hasIncrementedView: false,
     playbackRate: initialPlaybackRate,
     isPip: false,
     isFullscreen: false,

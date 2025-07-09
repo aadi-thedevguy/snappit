@@ -18,15 +18,16 @@ import {
   getOrderByClause,
   withErrorHandling,
 } from "@/lib/utils";
-import { CDN, AWS_CONFIG } from "@/constants";
+import { CDN } from "@/constants";
 import aj, { fixedWindow, request } from "../arcjet";
 import { getEnv } from "@/lib/utils";
-import { view } from "drizzle-orm/sqlite-core";
 
 // AWS Configuration
 const AWS_ACCESS_KEY_ID = getEnv("AWS_ACCESS_KEY_ID");
 const AWS_SECRET_ACCESS_KEY = getEnv("AWS_SECRET_ACCESS_KEY");
 const AWS_REGION = getEnv("AWS_REGION");
+const S3_BUCKET_NAME = getEnv("S3_BUCKET_NAME");
+
 
 const s3 = new S3Client({
   credentials: {
@@ -83,7 +84,7 @@ export const getVideoUploadUrl = withErrorHandling(async () => {
     const uploadUrl = await getSignedUrl(
       s3,
       new PutObjectCommand({
-        Bucket: AWS_CONFIG.BUCKET_NAME,
+        Bucket: S3_BUCKET_NAME,
         Key: videoId,
         // Expires: new Date(Date.now() + 3600 * 1000),
       }),
@@ -113,7 +114,7 @@ export const getThumbnailUploadUrl = withErrorHandling(
     const uploadUrl = await getSignedUrl(
       s3,
       new PutObjectCommand({
-        Bucket: AWS_CONFIG.BUCKET_NAME,
+        Bucket: S3_BUCKET_NAME,
         Key: thumbnailId,
         // Expires: new Date(Date.now() + 3600 * 1000),
       }),
@@ -303,13 +304,13 @@ export const deleteVideo = withErrorHandling(
     await Promise.all([
       s3.send(
         new DeleteObjectCommand({
-          Bucket: AWS_CONFIG.BUCKET_NAME,
+          Bucket: S3_BUCKET_NAME,
           Key: s3VideoKey,
         })
       ),
       s3.send(
         new DeleteObjectCommand({
-          Bucket: AWS_CONFIG.BUCKET_NAME,
+          Bucket: S3_BUCKET_NAME,
           Key: thumbnailPath,
         })
       ),

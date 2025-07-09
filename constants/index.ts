@@ -4,18 +4,11 @@ export const MAX_THUMBNAIL_SIZE = 10 * 1024 * 1024;
 
 export const DEFAULT_AVATAR_URL = "https://api.dicebear.com/9.x/avataaars-neutral/svg";
 
-// AWS Configuration
-export const AWS_CONFIG = {
-  S3_BASE_URL: `https://s3.ap-south-1.amazonaws.com`,
-  CLOUDFRONT_BASE_URL: `https://d28vypb2sw9vap.cloudfront.net`,
-  BUCKET_NAME: "snappit-bucket",
-};
-
 export const CDN = {
   VIDEO_URL: (videoId: string) =>
-    `${AWS_CONFIG.CLOUDFRONT_BASE_URL}/${videoId}`,
+    `https://d28vypb2sw9vap.cloudfront.net/${videoId}`,
   THUMBNAIL_URL: (thumbnailId: string) =>
-    `${AWS_CONFIG.CLOUDFRONT_BASE_URL}/${thumbnailId}`,
+    `https://d28vypb2sw9vap.cloudfront.net/${thumbnailId}`,
 };
 
 // Video Configuration
@@ -25,11 +18,6 @@ export const DEFAULT_VIDEO_CONFIG = {
   frameRate: { ideal: 30 },
   aspectRatio: 16 / 9,
   facingMode: "user",
-  processingProgress: 0,
-  uploadUrl: (videoId: string) =>
-    `${AWS_CONFIG.S3_BASE_URL}/${AWS_CONFIG.BUCKET_NAME}/${videoId}`,
-  thumbnailUrl: (thumbnailId: string) =>
-    `${AWS_CONFIG.S3_BASE_URL}/${AWS_CONFIG.BUCKET_NAME}/${thumbnailId}`,
 };
 
 // Video Recording Configuration
@@ -46,13 +34,3 @@ export const DEFAULT_RECORDING_CONFIG = {
 export const filterOptions = ["Most Viewed", "Most Recent"];
 
 export const visibilities: Visibility[] = ["public", "private"];
-
-export const initialVideoState = {
-  isLoaded: false,
-  hasIncrementedView: false,
-  isProcessing: false,
-  processingProgress: 0,
-  playbackRate: 1,
-  isPip: false,
-  isFullscreen: false,
-};

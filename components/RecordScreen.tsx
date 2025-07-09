@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { useScreenRecording } from "@/lib/hooks/useScreenRecording";
-import { Loader, Upload, VideoIcon, VideoOffIcon, X } from "lucide-react";
+import { Loader2, Upload, VideoIcon, VideoOffIcon, X } from "lucide-react";
 
 const RecordScreen = () => {
   const router = useRouter();
@@ -155,7 +155,7 @@ const RecordScreen = () => {
                     className="record-upload"
                   >
                     {isRedirecting ? (
-                      <Loader className="w-4 h-4 text-white animate-spin" />
+                      <Loader2 className="w-4 h-4 text-white animate-spin" />
                     ) : (
                       <Upload className="w-4 h-4 text-white" />
                     )}
