@@ -3,7 +3,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 
 const ImageWithFallback = ({
-  fallback = "/assets/images/dummy.jpg",
+  fallback = "/assets/images/avatar.webp",
   alt,
   src,
   ...props
@@ -17,12 +17,12 @@ const ImageWithFallback = ({
   }, [src, fallback]);
 
   return (
-    <Image
-      alt={alt}
-      onError={() => setError(true)}
-      src={error ? fallback : imgSrc}
-      {...props}
-    />
+      <Image
+        alt={alt}
+        onError={() => setError(true)}
+        src={error ? fallback : imgSrc}
+        {...props}
+      />
   );
 };
 
