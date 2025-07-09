@@ -17,7 +17,7 @@ const page = async ({ params }: Params) => {
 
       <section className="video-details">
         <div className="content">
-          <VideoPlayer videoId={video.videoId} videoUrl={video.videoUrl} />
+          <VideoPlayer videoId={video.videoId} videoUrl={video.videoUrl} duration={video.duration ?? 0}/>
         </div>
 
         <VideoInfo

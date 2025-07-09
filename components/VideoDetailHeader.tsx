@@ -61,14 +61,22 @@ const VideoDetailHeader = ({
         console.error("Error updating visibility:", error);
       } finally {
         setIsUpdating(false);
+        setCopied(false);
       }
     }
   };
 
   const copyLink = () => {
-    navigator.clipboard.writeText(
-      `${window.location.origin}/share/${publicVideoId}`
-    );
+    console.log(publicVideoId)
+    if (!publicVideoId) {
+      navigator.clipboard.writeText(
+        `${window.location.origin}/video/${videoId}`
+      );
+    } else {
+      navigator.clipboard.writeText(
+        `${window.location.origin}/share/${publicVideoId}`
+      );
+    }
     setCopied(true);
   };
 
@@ -87,16 +95,14 @@ const VideoDetailHeader = ({
       <aside className="user-info">
         <h1>{title}</h1>
         <figure>
-          <button onClick={() => router.push(`/profile/${ownerId}`)}>
-            <ImageWithFallback
-              src={userImg ?? ""}
-              alt="User"
-              width={24}
-              height={24}
-              className="rounded-full"
-            />
-            <h2>{username ?? "Guest"}</h2>
-          </button>
+          <ImageWithFallback
+            src={userImg ?? ""}
+            width={24}
+            alt="User"
+            className="rounded-full"
+            height={24}
+          />
+          <h2>{username ?? "Guest"}</h2>
           <figcaption>
             <p>
               <span className="mt-1">・</span>

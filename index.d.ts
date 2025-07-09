@@ -75,7 +75,7 @@ declare interface VideoDetailHeaderProps {
   userImg: string | null | undefined;
   username?: string;
   videoId: string;
-  publicVideoId: string;
+  publicVideoId?: string;
   ownerId: string;
   visibility: string;
   thumbnailUrl: string;

@@ -19,15 +19,15 @@ const page = async ({ params }: Params) => {
         userImg={user?.image}
         username={user?.name}
         videoId={video.videoId}
-        publicVideoId={video.publicVideoId ?? ""}
         ownerId={video.userId}
         visibility={video.visibility}
         thumbnailUrl={video.thumbnailUrl}
+        publicVideoId={video.publicVideoId ?? undefined}
       />
 
       <section className="video-details">
         <div className="content">
-          <VideoPlayer videoId={video.videoId} videoUrl={video.videoUrl} />
+          <VideoPlayer videoId={video.videoId} videoUrl={video.videoUrl} duration={video.duration ?? 0} />
         </div>
 
         <VideoInfo

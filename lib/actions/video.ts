@@ -137,12 +137,11 @@ export const saveVideoDetails = withErrorHandling(
     // AWS Implementation
     const now = new Date();
     const videoUrl = CDN.VIDEO_URL(videoDetails.videoId);
-    const publicVideoId = generatePublicVideoUrl();
 
     await db.insert(videos).values({
       ...videoDetails,
       videoUrl,
-      publicVideoId,
+      ...(videoDetails.visibility === "public" && { publicVideoId: generatePublicVideoUrl() }),
       userId,
       createdAt: now,
       updatedAt: now,
@@ -282,7 +281,11 @@ export const updateVideoVisibility = withErrorHandling(
     await validateWithArcjet(videoId);
     await db
       .update(videos)
-      .set({ visibility, updatedAt: new Date() })
+      .set({ 
+        visibility,
+        updatedAt: new Date(),
+        publicVideoId: visibility === "public" ? generatePublicVideoUrl() : undefined,
+       })
       .where(eq(videos.videoId, videoId));
 
     revalidatePaths(["/", `/video/${videoId}`]);
