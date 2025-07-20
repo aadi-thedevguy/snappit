@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Karla } from "next/font/google";
+import { Toaster } from "sonner";
 import "./globals.css";
 import { satoshi } from "../fonts/font";
 
@@ -26,6 +27,7 @@ export default function Layout({
       <body
         className={`${geistKarla.variable} ${satoshi.variable} font-karla antialiased`}
       >
+        <Toaster richColors position="top-center" />
         {children}
       </body>
     </html>

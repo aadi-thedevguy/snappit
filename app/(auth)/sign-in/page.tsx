@@ -2,10 +2,26 @@
 
 import Link from "next/link";
 import Image from "next/image";
-
+import { useState } from "react";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 
 const SignIn = () => {
+  const [loading, setLoading] = useState(false);
+
+  const handleSignIn = async () => {
+    setLoading(true);
+    const { error } = await authClient.signIn.social({
+      provider: "google",
+    });
+    if (error) {
+      toast.error(error.message);
+      setLoading(false);
+      return;
+    }
+    setLoading(false);
+  };
   return (
     <main className="sign-in">
       <aside className="testimonial">
@@ -79,18 +95,19 @@ const SignIn = () => {
           </p>
 
           <button
-            onClick={async () => {
-              return await authClient.signIn.social({
-                provider: "google",
-              });
-            }}
+            onClick={handleSignIn}
+            disabled={loading}
           >
-            <Image
-              src="/assets/icons/google.svg"
-              alt="Google Icon"
-              width={22}
-              height={22}
-            />
+            {loading ? (
+              <Loader2 className="animate-spin w-5 h-5" />
+            ) : (
+              <Image
+                src="/assets/icons/google.svg"
+                alt="Google Icon"
+                width={22}
+                height={22}
+              />
+            )}
             <span>Sign in with Google</span>
           </button>
         </section>
