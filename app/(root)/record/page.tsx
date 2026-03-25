@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { DEFAULT_VIDEO_CONFIG, DEFAULT_RECORDING_CONFIG } from "@/constants";
+import { savePendingUpload } from "@/lib/hooks/videoStore";
 
 type RecordingState = "idle" | "recording" | "paused" | "stopped";
 
@@ -23,7 +24,6 @@ export default function Record() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const startTimeRef = useRef<number>(0);
 
   const [state, setState] = useState<RecordingState>("idle");
@@ -31,7 +31,6 @@ export default function Record() {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [duration, setDuration] = useState(0);
-  const [title, setTitle] = useState("");
   const [timer, setTimer] = useState("0:00");
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -120,7 +119,7 @@ export default function Record() {
     const url = URL.createObjectURL(recordedBlob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${title || "recording"}.webm`;
+    a.download = "recording.webm";
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -130,72 +129,33 @@ export default function Record() {
     setState("idle");
     setDuration(0);
     setTimer("0:00");
-    setTitle("");
     if (videoRef.current) {
       videoRef.current.src = "";
       videoRef.current.srcObject = null;
     }
   };
 
-  const captureThumbnail = (
-    video: HTMLVideoElement,
-    canvas: HTMLCanvasElement,
-  ) => {
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      console.error("Could not get canvas context");
-      return;
-    }
-
+  const saveRecording = async () => {
+    if (!recordedBlob) return;
     try {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      // Create a thumbnail from the canvas
-      const thumbnailData = canvas.toDataURL("image/jpeg");
-
-      return thumbnailData;
-    } catch (error) {
-      console.error("Error generating thumbnail:", error);
-    }
-  };
-
-  const goToUpload = () => {
-    if (!recordedBlob || !videoRef.current || !canvasRef.current) return;
-
-    const url = URL.createObjectURL(recordedBlob);
-    let thumbnailData: string | undefined;
-    const video = videoRef.current;
-    video.src = url;
-    setIsRedirecting(true);
-
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      console.error("Canvas ref not available");
-      throw new Error("Canvas element not available");
-    }
-    setTimeout(() => {
-      thumbnailData = captureThumbnail(video, canvas);
-
-      const videoData = {
-        url,
-        name: "screen-recording.webm",
-        type: recordedBlob.type,
-        size: recordedBlob.size,
-        duration: duration || 0,
-        thumbnailUrl: thumbnailData,
-      };
-
-      if (!thumbnailData) {
-        console.error("Thumbnail not generated");
-        return;
-      }
-
-      sessionStorage.setItem("recordedVideo", JSON.stringify(videoData));
-      router.push("/upload");
+      setIsRedirecting(true);
+      await savePendingUpload({
+        blob: recordedBlob,
+        duration,
+      });
       setIsRedirecting(false);
-    }, 3000);
+      toast.success("Recording ready", {
+        description: "Redirecting to upload...",
+      });
+      router.push("/upload");
+    } catch (err) {
+      setIsRedirecting(false);
+      if (err instanceof Error) {
+        toast.error("Error", {
+          description: err.message,
+        });
+      }
+    }
   };
 
   return (
@@ -320,7 +280,7 @@ export default function Record() {
         {state === "stopped" && (
           <>
             <Button
-              onClick={goToUpload}
+              onClick={saveRecording}
               disabled={isRedirecting}
               size="lg"
               className="px-4 py-6 rounded-full bg-sky-100 hover:bg-sky-100/80 cursor-pointer gap-2 shadow-elegant"
@@ -328,7 +288,6 @@ export default function Record() {
               <Save className="h-5 w-5" />
               {isRedirecting ? "Saving..." : "Save Recording"}
             </Button>
-            <canvas ref={canvasRef} style={{ display: "none" }} />
           </>
         )}
       </div>

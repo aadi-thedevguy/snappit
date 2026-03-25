@@ -34,7 +34,6 @@ export function EditDialog({
   recording: typeof videos.$inferSelect;
   onClose: () => void;
 }) {
-  // const update = useUpdateRecording();
   const [title, setTitle] = useState(recording.title);
   const [description, setDescription] = useState(recording.description || "");
   const [isPublic, setIsPublic] = useState(recording.visibility === "public");
@@ -60,7 +59,11 @@ export function EditDialog({
           </div>
           <div className="flex items-center justify-between">
             <Label>Public</Label>
-            <Switch checked={isPublic} onCheckedChange={setIsPublic} />
+            <Switch
+              checked={isPublic}
+              onCheckedChange={setIsPublic}
+              className="data-checked:bg-sky-100"
+            />
           </div>
         </div>
         <DialogFooter>
@@ -104,8 +107,12 @@ export function DeleteDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel variant="" size="">
+            Cancel
+          </AlertDialogCancel>
           <AlertDialogAction
+            variant="destructive"
+            size=""
             // onClick={() => del.mutate(id, { onSuccess: onClose })}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >

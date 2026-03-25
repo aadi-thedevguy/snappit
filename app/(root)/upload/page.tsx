@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, ChangeEvent, useEffect, useCallback } from "react";
+import { ChangeEvent, useEffect, useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -19,15 +19,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { AlertCircleIcon, ImageIcon, UploadIcon, Video, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Image from "next/image";
+import { Switch } from "@/components/ui/switch";
+import { clearPendingUpload, getPendingUpload } from "@/lib/hooks/videoStore";
+import { generateThumbnail } from "@/lib/hooks/generateThumbnail";
 
 const uploadFileToStorage = async (
   file: File,
@@ -59,102 +55,127 @@ const formSchema = z.object({
     .min(20, "Description must be at least 20 characters.")
     .max(500, "Description must be at most 500 characters."),
   visibility: z.enum(["public", "private"]),
+  duration: z.number(),
 });
 
 const UploadPage = () => {
   const router = useRouter();
-  const [videoDuration, setVideoDuration] = useState<number | null>(null);
+  const date = new Date();
+  const formattedDate = date.toLocaleString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      title: "",
-      description: "",
-      visibility: "public",
+      title: `Snappit - ${formattedDate}`,
+      description:
+        "This video has been recorded by Snappit. Generate yours at snappit.adityakhare.com",
+      visibility: "private",
+      duration: 0,
     },
   });
 
   const video = useFileInput(MAX_VIDEO_SIZE);
   const thumbnail = useFileInput(MAX_THUMBNAIL_SIZE);
 
-  useEffect(() => {
-    if (video.duration !== null) {
-      setVideoDuration(video.duration);
-    }
-  }, [video.duration]);
-
-  useEffect(() => {
-    const checkForRecordedVideo = async () => {
-      try {
-        const stored = sessionStorage.getItem("recordedVideo");
-        if (!stored) return;
-
-        const { url, name, type, duration, thumbnailUrl } = JSON.parse(stored);
-        const blob = await fetch(url).then((res) => res.blob());
-        const file = new File([blob], name, { type, lastModified: Date.now() });
-
-        const now = new Date();
-        const formattedDate = now.toLocaleString("en-US", {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
+  const generateAndSetThumbnail = async (videoBlob: Blob) => {
+    try {
+      const thumbnailBlob = await generateThumbnail(videoBlob);
+      if (thumbnailBlob && thumbnail.inputRef.current) {
+        const thumbnailFile = new File([thumbnailBlob], "thumbnail.jpg", {
+          type: "image/jpeg",
+          lastModified: Date.now(),
         });
 
-        form.setValue("title", `Snappit - ${formattedDate}`);
-        form.setValue(
-          "description",
-          `This video has been recorded by Snappit. Generate yours at snappit.adityakhare.com`,
-        );
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(thumbnailFile);
+        thumbnail.inputRef.current.files = dataTransfer.files;
 
-        if (video.inputRef.current) {
-          const dataTransfer = new DataTransfer();
-          dataTransfer.items.add(file);
-          video.inputRef.current.files = dataTransfer.files;
-
-          const event = new Event("change", { bubbles: true });
-          video.inputRef.current.dispatchEvent(event);
-
-          video.handleFileChange({
-            target: { files: dataTransfer.files },
-          } as ChangeEvent<HTMLInputElement>);
-        }
-
-        if (thumbnailUrl) {
-          try {
-            const response = await fetch(thumbnailUrl);
-            const blob = await response.blob();
-
-            const thumbnailFile = new File([blob], "thumbnail.jpg", {
-              type: "image/jpeg",
-              lastModified: Date.now(),
-            });
-
-            if (thumbnail.inputRef.current) {
-              const dataTransfer = new DataTransfer();
-              dataTransfer.items.add(thumbnailFile);
-              thumbnail.inputRef.current.files = dataTransfer.files;
-
-              thumbnail.handleFileChange({
-                target: { files: dataTransfer.files },
-              } as ChangeEvent<HTMLInputElement>);
-            }
-          } catch (error) {
-            console.error("Error setting thumbnail file:", error);
-          }
-        }
-
-        if (duration) setVideoDuration(duration);
-
-        sessionStorage.removeItem("recordedVideo");
-        URL.revokeObjectURL(url);
-      } catch (err) {
-        console.error("Error loading recorded video:", err);
+        thumbnail.handleFileChange({
+          target: { files: dataTransfer.files },
+        } as ChangeEvent<HTMLInputElement>);
       }
-    };
+    } catch (err) {
+      console.error("Error generating thumbnail:", err);
+      // thumbnail will be generated at upload time as fallback
+    }
+  };
 
-    checkForRecordedVideo();
+  // Check IndexedDB for a pending recording on mount
+  const getDataFromStorage = async () => {
+    const pending = await getPendingUpload();
+    if (pending && video.inputRef.current) {
+      const file = new File([pending.blob], "recording.webm", {
+        type: "video/webm",
+        lastModified: Date.now(),
+      });
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      video.inputRef.current.files = dataTransfer.files;
+
+      const event = new Event("change", { bubbles: true });
+      video.inputRef.current.dispatchEvent(event);
+
+      video.handleFileChange({
+        target: { files: dataTransfer.files },
+      } as ChangeEvent<HTMLInputElement>);
+
+      form.setValue("duration", pending.duration);
+      await generateAndSetThumbnail(pending.blob);
+      await clearPendingUpload();
+      return;
+    }
+
+    // Check for extension data via query param
+    const params = new URLSearchParams(window.location.search);
+    if (
+      params.get("from") === "extension" &&
+      (window as any).chrome?.storage?.local
+    ) {
+      (window as any).chrome.storage.local.get(
+        "pendingRecording",
+        (result: any) => {
+          if (result?.pendingRecording) {
+            const { dataUrl, duration: extDuration } = result.pendingRecording;
+            fetch(dataUrl)
+              .then((r) => r.blob())
+              .then(async (b) => {
+                if (pending && video.inputRef.current) {
+                  const file = new File([pending.blob], "recording.webm", {
+                    type: "video/webm",
+                    lastModified: Date.now(),
+                  });
+                  const dataTransfer = new DataTransfer();
+                  dataTransfer.items.add(file);
+                  video.inputRef.current.files = dataTransfer.files;
+
+                  const event = new Event("change", { bubbles: true });
+                  video.inputRef.current.dispatchEvent(event);
+
+                  video.handleFileChange({
+                    target: { files: dataTransfer.files },
+                  } as ChangeEvent<HTMLInputElement>);
+
+                  form.setValue("duration", extDuration);
+                  await generateAndSetThumbnail(b);
+                  (window as any).chrome.storage.local.remove(
+                    "pendingRecording",
+                  );
+                }
+              });
+          }
+        },
+      );
+    }
+  };
+
+  useEffect(() => {
+    getDataFromStorage();
   }, []);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -185,7 +206,6 @@ const UploadPage = () => {
         videoId,
         ...values,
         thumbnailUrl: thumbnailCdnUrl,
-        duration: videoDuration,
       });
 
       router.push(`/video/${videoId}`);
@@ -366,21 +386,21 @@ const UploadPage = () => {
               />
             </div>
 
-            <div className="my-6">
-              <Label className="mb-3">Visibility</Label>
+            <div className="my-6 flex items-center gap-4">
+              <div>
+                <Label className="text-base font-medium">Visibility</Label>
+              </div>
               <Controller
                 control={form.control}
                 name="visibility"
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger className="w-full px-2 py-4 rounded-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="w-full rounded-xl">
-                      <SelectItem value="private">Private</SelectItem>
-                      <SelectItem value="public">Public</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Switch
+                    checked={field.value === "public"}
+                    onCheckedChange={(checked) =>
+                      field.onChange(checked ? "public" : "private")
+                    }
+                    className="data-checked:bg-sky-100 cursor-pointer"
+                  />
                 )}
               />
             </div>

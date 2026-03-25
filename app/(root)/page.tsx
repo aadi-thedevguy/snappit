@@ -57,7 +57,7 @@ const ProfilePage = async ({ searchParams }: ParamsWithSearch) => {
             Start by recording your screen. Your recordings will appear here.
           </p>
           <Link href="/record">
-            <Button className="gradient-primary text-primary-foreground gap-2">
+            <Button className="bg-sky-100 hover:bg-sky-100/80 px-4 py-6 rounded-full shadow-elegant gap-2">
               <Monitor className="h-4 w-4" />
               Start Recording
             </Button>
