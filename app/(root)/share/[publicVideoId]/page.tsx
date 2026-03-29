@@ -7,10 +7,12 @@ import PublicVideoDetail from "@/components/PublicVideoDetail";
 const page = async ({ params }: Params) => {
   const { publicVideoId } = await params;
 
-  const videoData = await getVideoByPublicVideoId(publicVideoId);
-  if (!videoData) redirect("/404");
+  const { data: videoData, error } =
+    await getVideoByPublicVideoId(publicVideoId);
+  if (!videoData || error) redirect("/404");
 
   const { video } = videoData;
+  if (!video) redirect("/404");
 
   return (
     <main className="min-h-screen bg-background">

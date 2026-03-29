@@ -8,8 +8,8 @@ import { getVideoById } from "@/lib/actions/video";
 const page = async ({ params }: Params) => {
   const { videoId } = await params;
 
-  const videoData = await getVideoById(videoId);
-  if (!videoData) redirect("/404");
+  const { data: videoData, error } = await getVideoById(videoId);
+  if (!videoData || error) redirect("/404");
 
   const { user, video } = videoData;
 

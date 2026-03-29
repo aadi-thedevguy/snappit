@@ -18,12 +18,14 @@ const ProfilePage = async ({ searchParams }: ParamsWithSearch) => {
 
   if (!currentUserId) redirect("/404");
 
-  const { user, videos, pagination } = await getAllVideos(
+  const { data, error } = await getAllVideos(
     currentUserId,
     query,
     filter,
     Number(page) || 1,
   );
+  if (!data || error) redirect("/404");
+  const { videos, pagination, user } = data;
   if (!user) redirect("/404");
 
   const filtered = videos.map((video) => ({

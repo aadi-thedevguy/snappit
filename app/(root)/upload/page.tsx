@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -10,7 +10,6 @@ import {
   saveVideoDetails,
 } from "@/lib/actions/video";
 import { useRouter } from "next/navigation";
-import { useFileInput } from "@/lib/hooks/useFileInput";
 import { MAX_THUMBNAIL_SIZE, MAX_VIDEO_SIZE } from "@/constants";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -24,6 +23,7 @@ import Image from "next/image";
 import { Switch } from "@/components/ui/switch";
 import { clearPendingUpload, getPendingUpload } from "@/lib/hooks/videoStore";
 import { generateThumbnail } from "@/lib/hooks/generateThumbnail";
+import { formSchema } from "@/lib/utils";
 
 const uploadFileToStorage = async (
   file: File,
@@ -44,19 +44,6 @@ const uploadFileToStorage = async (
     throw error;
   }
 };
-
-const formSchema = z.object({
-  title: z
-    .string()
-    .min(5, "Video title must be at least 5 characters.")
-    .max(100, "Video title must be at most 100 characters."),
-  description: z
-    .string()
-    .min(20, "Description must be at least 20 characters.")
-    .max(500, "Description must be at most 500 characters."),
-  visibility: z.enum(["public", "private"]),
-  duration: z.number(),
-});
 
 const UploadPage = () => {
   const router = useRouter();
@@ -80,25 +67,116 @@ const UploadPage = () => {
     },
   });
 
-  const video = useFileInput(MAX_VIDEO_SIZE);
-  const thumbnail = useFileInput(MAX_THUMBNAIL_SIZE);
+  // Video state & refs
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
+  const videoUrlRef = useRef<string | null>(null);
+
+  // Thumbnail state & refs
+  const thumbnailInputRef = useRef<HTMLInputElement>(null);
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [thumbnailPreviewUrl, setThumbnailPreviewUrl] = useState<string | null>(
+    null,
+  );
+  const thumbnailUrlRef = useRef<string | null>(null);
+
+  const setSafeVideoPreviewUrl = useCallback((url: string | null) => {
+    if (videoUrlRef.current) URL.revokeObjectURL(videoUrlRef.current);
+    videoUrlRef.current = url;
+    setVideoPreviewUrl(url);
+  }, []);
+
+  const setSafeThumbnailPreviewUrl = useCallback((url: string | null) => {
+    if (thumbnailUrlRef.current) URL.revokeObjectURL(thumbnailUrlRef.current);
+    thumbnailUrlRef.current = url;
+    setThumbnailPreviewUrl(url);
+  }, []);
+
+  // Cleanup object URLs safely on component unmount
+  useEffect(() => {
+    return () => {
+      if (videoUrlRef.current) URL.revokeObjectURL(videoUrlRef.current);
+      if (thumbnailUrlRef.current) URL.revokeObjectURL(thumbnailUrlRef.current);
+    };
+  }, []);
+
+  // File Select Handlers
+  const handleVideoSelect = useCallback(
+    (file: File | undefined) => {
+      if (!file) {
+        setVideoFile(null);
+        setSafeVideoPreviewUrl(null);
+        return;
+      }
+      if (file.size > MAX_VIDEO_SIZE) {
+        toast.error("File is too large", {
+          description: `The maximum file size is ${MAX_VIDEO_SIZE / 1024 / 1024}MB.`,
+        });
+        if (videoInputRef.current) videoInputRef.current.value = "";
+        setVideoFile(null);
+        setSafeVideoPreviewUrl(null);
+        return;
+      }
+      setVideoFile(file);
+      setSafeVideoPreviewUrl(URL.createObjectURL(file));
+
+      if (!form.getValues("title")) {
+        form.setValue("title", file.name.replace(/\.[^.]+$/, ""));
+      }
+    },
+    [form, setSafeVideoPreviewUrl],
+  );
+
+  const handleThumbnailSelect = useCallback(
+    (file: File | undefined) => {
+      if (!file) {
+        setThumbnailFile(null);
+        setSafeThumbnailPreviewUrl(null);
+        return;
+      }
+      if (file.size > MAX_THUMBNAIL_SIZE) {
+        toast.error("File is too large", {
+          description: `The maximum file size is ${MAX_THUMBNAIL_SIZE / 1024 / 1024}MB.`,
+        });
+        if (thumbnailInputRef.current) thumbnailInputRef.current.value = "";
+        setThumbnailFile(null);
+        setSafeThumbnailPreviewUrl(null);
+        return;
+      }
+      setThumbnailFile(file);
+      setSafeThumbnailPreviewUrl(URL.createObjectURL(file));
+    },
+    [setSafeThumbnailPreviewUrl],
+  );
+
+  const resetVideo = useCallback(() => {
+    setVideoFile(null);
+    setSafeVideoPreviewUrl(null);
+    if (videoInputRef.current) videoInputRef.current.value = "";
+  }, [setSafeVideoPreviewUrl]);
+
+  const resetThumbnail = useCallback(() => {
+    setThumbnailFile(null);
+    setSafeThumbnailPreviewUrl(null);
+    if (thumbnailInputRef.current) thumbnailInputRef.current.value = "";
+  }, [setSafeThumbnailPreviewUrl]);
 
   const generateAndSetThumbnail = async (videoBlob: Blob) => {
     try {
       const thumbnailBlob = await generateThumbnail(videoBlob);
-      if (thumbnailBlob && thumbnail.inputRef.current) {
+      if (thumbnailBlob) {
         const thumbnailFile = new File([thumbnailBlob], "thumbnail.jpg", {
           type: "image/jpeg",
           lastModified: Date.now(),
         });
 
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(thumbnailFile);
-        thumbnail.inputRef.current.files = dataTransfer.files;
-
-        thumbnail.handleFileChange({
-          target: { files: dataTransfer.files },
-        } as ChangeEvent<HTMLInputElement>);
+        if (thumbnailInputRef.current) {
+          const dataTransfer = new DataTransfer();
+          dataTransfer.items.add(thumbnailFile);
+          thumbnailInputRef.current.files = dataTransfer.files;
+        }
+        handleThumbnailSelect(thumbnailFile);
       }
     } catch (err) {
       console.error("Error generating thumbnail:", err);
@@ -109,21 +187,17 @@ const UploadPage = () => {
   // Check IndexedDB for a pending recording on mount
   const getDataFromStorage = async () => {
     const pending = await getPendingUpload();
-    if (pending && video.inputRef.current) {
+    if (pending) {
       const file = new File([pending.blob], "recording.webm", {
         type: "video/webm",
         lastModified: Date.now(),
       });
-      const dataTransfer = new DataTransfer();
-      dataTransfer.items.add(file);
-      video.inputRef.current.files = dataTransfer.files;
-
-      const event = new Event("change", { bubbles: true });
-      video.inputRef.current.dispatchEvent(event);
-
-      video.handleFileChange({
-        target: { files: dataTransfer.files },
-      } as ChangeEvent<HTMLInputElement>);
+      if (videoInputRef.current) {
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        videoInputRef.current.files = dataTransfer.files;
+      }
+      handleVideoSelect(file);
 
       form.setValue("duration", pending.duration);
       await generateAndSetThumbnail(pending.blob);
@@ -145,28 +219,20 @@ const UploadPage = () => {
             fetch(dataUrl)
               .then((r) => r.blob())
               .then(async (b) => {
-                if (pending && video.inputRef.current) {
-                  const file = new File([pending.blob], "recording.webm", {
-                    type: "video/webm",
-                    lastModified: Date.now(),
-                  });
+                const file = new File([b], "recording.webm", {
+                  type: "video/webm",
+                  lastModified: Date.now(),
+                });
+                if (videoInputRef.current) {
                   const dataTransfer = new DataTransfer();
                   dataTransfer.items.add(file);
-                  video.inputRef.current.files = dataTransfer.files;
-
-                  const event = new Event("change", { bubbles: true });
-                  video.inputRef.current.dispatchEvent(event);
-
-                  video.handleFileChange({
-                    target: { files: dataTransfer.files },
-                  } as ChangeEvent<HTMLInputElement>);
-
-                  form.setValue("duration", extDuration);
-                  await generateAndSetThumbnail(b);
-                  (window as any).chrome.storage.local.remove(
-                    "pendingRecording",
-                  );
+                  videoInputRef.current.files = dataTransfer.files;
                 }
+                handleVideoSelect(file);
+
+                form.setValue("duration", extDuration);
+                await generateAndSetThumbnail(b);
+                (window as any).chrome.storage.local.remove("pendingRecording");
               });
           }
         },
@@ -180,27 +246,36 @@ const UploadPage = () => {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      if (!video.file || !thumbnail.file) {
+      if (!videoFile || !thumbnailFile) {
         form.setError("root", {
           message: "Please upload video and thumbnail files.",
         });
         return;
       }
 
-      const { videoId, uploadUrl: videoUploadUrl } = await getVideoUploadUrl();
+      const { data, error } = await getVideoUploadUrl();
+      if (!data || error) {
+        form.setError("root", {
+          message: error || "Failed to retrieve video upload URL.",
+        });
+        return;
+      }
 
-      if (!videoUploadUrl)
-        throw new Error("Failed to get video upload credentials");
+      const { videoId, uploadUrl: videoUploadUrl } = data;
+      await uploadFileToStorage(videoFile, videoUploadUrl);
 
-      await uploadFileToStorage(video.file, videoUploadUrl);
-
-      const { uploadUrl: thumbnailUploadUrl, cdnUrl: thumbnailCdnUrl } =
+      const { data: thumbnailData, error: thumbnailError } =
         await getThumbnailUploadUrl(videoId);
 
-      if (!thumbnailUploadUrl || !thumbnailCdnUrl)
-        throw new Error("Failed to get thumbnail upload credentials");
-
-      await uploadFileToStorage(thumbnail.file, thumbnailUploadUrl);
+      if (!thumbnailData || thumbnailError) {
+        form.setError("root", {
+          message: thumbnailError || "Failed to retrieve thumbnail upload URL.",
+        });
+        return;
+      }
+      const { uploadUrl: thumbnailUploadUrl, cdnUrl: thumbnailCdnUrl } =
+        thumbnailData;
+      await uploadFileToStorage(thumbnailFile, thumbnailUploadUrl);
 
       await saveVideoDetails({
         videoId,
@@ -228,7 +303,7 @@ const UploadPage = () => {
           });
           return;
         }
-        thumbnail.handleFileChange(e);
+        handleThumbnailSelect(droppedFile);
         return;
       }
       if (!droppedFile || !droppedFile.type.startsWith("video/")) {
@@ -237,12 +312,9 @@ const UploadPage = () => {
         });
         return;
       }
-      video.handleFileChange(e);
-      if (!form.getValues("title")) {
-        form.setValue("title", droppedFile.name.replace(/\.[^.]+$/, ""));
-      }
+      handleVideoSelect(droppedFile);
     },
-    [video, thumbnail, form],
+    [handleThumbnailSelect, handleVideoSelect],
   );
 
   return (
@@ -305,15 +377,16 @@ const UploadPage = () => {
               <Label htmlFor="video" className="mb-3">
                 Video
               </Label>
-              {video.file ? (
+              {videoFile ? (
                 <div className="relative rounded-2xl border border-border overflow-hidden bg-foreground/5">
                   <video
-                    src={video.previewUrl ?? undefined}
+                    src={videoPreviewUrl ?? undefined}
                     className="w-full aspect-video object-contain"
                     controls
                   />
                   <button
-                    onClick={video.resetFile}
+                    type="button"
+                    onClick={resetVideo}
                     className="cursor-pointer absolute top-2 right-2 p-1.5 rounded-full bg-foreground/60 text-background hover:bg-foreground/80 transition-colors"
                   >
                     <X className="h-4 w-4" />
@@ -322,7 +395,7 @@ const UploadPage = () => {
               ) : (
                 <div
                   className="border-2 border-dashed border-border rounded-2xl p-12 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-sky-100/50 hover:bg-sky-100/5 transition-colors"
-                  onClick={() => video.inputRef.current?.click()}
+                  onClick={() => videoInputRef.current?.click()}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={handleDrop}
                 >
@@ -333,32 +406,27 @@ const UploadPage = () => {
                 </div>
               )}
               <input
-                ref={video.inputRef}
+                ref={videoInputRef}
                 type="file"
                 accept="video/*"
                 className="hidden"
-                onChange={(e) => {
-                  video.handleFileChange(e);
-                  const file = e.target.files?.[0];
-                  if (file && !form.getValues("title")) {
-                    form.setValue("title", file.name.replace(/\.[^.]+$/, ""));
-                  }
-                }}
+                onChange={(e) => handleVideoSelect(e.target.files?.[0])}
               />
             </div>
 
             <div className="my-6">
               <Label className="mb-3">Thumbnail</Label>
-              {thumbnail.file ? (
+              {thumbnailFile ? (
                 <div className="relative w-full aspect-video rounded-2xl border border-border overflow-hidden bg-foreground/5">
                   <Image
-                    src={thumbnail.previewUrl ?? ""}
+                    src={thumbnailPreviewUrl ?? ""}
                     alt="Selected thumbnail"
                     fill
                     className="object-cover"
                   />
                   <button
-                    onClick={thumbnail.resetFile}
+                    type="button"
+                    onClick={resetThumbnail}
                     className="cursor-pointer absolute top-2 right-2 p-1.5 rounded-full bg-foreground/60 text-background hover:bg-foreground/80 transition-colors"
                   >
                     <X className="h-4 w-4" />
@@ -367,7 +435,7 @@ const UploadPage = () => {
               ) : (
                 <div
                   className="border-2 border-dashed border-border rounded-2xl p-12 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-sky-100/50 hover:bg-sky-100/5 transition-colors"
-                  onClick={() => thumbnail.inputRef.current?.click()}
+                  onClick={() => thumbnailInputRef.current?.click()}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => handleDrop(e, true)}
                 >
@@ -378,17 +446,17 @@ const UploadPage = () => {
                 </div>
               )}
               <input
-                ref={thumbnail.inputRef}
+                ref={thumbnailInputRef}
                 type="file"
                 accept="image/*"
                 className="hidden"
-                onChange={thumbnail.handleFileChange}
+                onChange={(e) => handleThumbnailSelect(e.target.files?.[0])}
               />
             </div>
 
             <div className="my-6 flex items-center gap-4">
               <div>
-                <Label className="text-base font-medium">Visibility</Label>
+                <Label className="text-base font-medium">Public</Label>
               </div>
               <Controller
                 control={form.control}
@@ -408,7 +476,7 @@ const UploadPage = () => {
             {/* Upload button */}
             <Button
               type="submit"
-              disabled={!video.file || form.formState.isSubmitting}
+              disabled={form.formState.isSubmitting}
               className="bg-sky-100 hover:bg-sky-100/80 px-3 py-6 w-full rounded-full gap-2 shadow-elegant"
               size="lg"
             >

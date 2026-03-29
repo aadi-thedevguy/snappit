@@ -16,19 +16,6 @@ const VideoDetailHeader = ({
   publicVideoId,
   views,
 }: VideoDetailHeaderProps) => {
-  // const handleDelete = async () => {
-  //   try {
-  //     setIsDeleting(true);
-  //     await deleteVideo(videoId, thumbnailUrl);
-  //     router.push("/");
-  //   } catch (error) {
-  //     console.error("Error deleting video:", error);
-  //   } finally {
-  //     setIsDeleting(false);
-  //   }
-  // };
-  // await updateVideoVisibility(videoId, option as Visibility);
-
   const copyLink = () => {
     if (!publicVideoId) {
       navigator.clipboard.writeText(

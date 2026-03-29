@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useOptimistic, useState, startTransition } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -26,6 +26,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Copy } from "lucide-react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Controller, useForm } from "react-hook-form";
+import z from "zod";
+import {
+  deleteVideo,
+  updateVideoDetails,
+  updateVideoVisibility,
+} from "@/lib/actions/video";
+import { updateFormSchema } from "@/lib/utils";
 
 export function EditDialog({
   recording,
@@ -34,9 +43,26 @@ export function EditDialog({
   recording: typeof videos.$inferSelect;
   onClose: () => void;
 }) {
-  const [title, setTitle] = useState(recording.title);
-  const [description, setDescription] = useState(recording.description || "");
-  const [isPublic, setIsPublic] = useState(recording.visibility === "public");
+  const form = useForm<z.infer<typeof updateFormSchema>>({
+    resolver: zodResolver(updateFormSchema),
+    defaultValues: {
+      title: recording.title,
+      description: recording.description,
+      visibility: recording.visibility,
+      videoId: recording.videoId,
+    },
+  });
+
+  const onSubmit = async (values: z.infer<typeof updateFormSchema>) => {
+    const { data, error } = await updateVideoDetails(values);
+    if (!data || error) {
+      toast.error(error);
+      return;
+    }
+    toast.success("Video details updated successfully");
+    form.reset();
+    onClose();
+  };
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -44,40 +70,72 @@ export function EditDialog({
         <DialogHeader>
           <DialogTitle className="font-display">Edit Recording</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Title</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+        <form onSubmit={form.handleSubmit(onSubmit)}>
+          <div className="my-6">
+            <Label htmlFor="title" className="mb-3 text-primary">
+              Title
+            </Label>
+            <Input
+              id="title"
+              placeholder="Enter a clear and concise video title"
+              {...form.register("title")}
+            />
+            {form.formState.errors.title && (
+              <p className="text-sm text-red-500 mt-2">
+                {form.formState.errors.title.message}
+              </p>
+            )}
           </div>
-          <div className="space-y-2">
-            <Label>Description</Label>
+
+          {/* Description */}
+          <div className="my-6">
+            <Label htmlFor="description" className="mb-2">
+              Description
+            </Label>
             <Textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              id="description"
+              placeholder="Add a description for your video..."
               rows={3}
+              {...form.register("description")}
+            />
+            {form.formState.errors.description && (
+              <p className="text-sm text-red-500 mt-2">
+                {form.formState.errors.description.message}
+              </p>
+            )}
+          </div>
+
+          <div className="my-6 flex items-center gap-4">
+            <div>
+              <Label className="text-base font-medium">Public</Label>
+            </div>
+            <Controller
+              control={form.control}
+              name="visibility"
+              render={({ field }) => (
+                <Switch
+                  checked={field.value === "public"}
+                  onCheckedChange={(checked) =>
+                    field.onChange(checked ? "public" : "private")
+                  }
+                  className="data-checked:bg-sky-100 cursor-pointer"
+                />
+              )}
             />
           </div>
-          <div className="flex items-center justify-between">
-            <Label>Public</Label>
-            <Switch
-              checked={isPublic}
-              onCheckedChange={setIsPublic}
-              className="data-checked:bg-sky-100"
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            // onClick={handleSave}
-            // disabled={update.isPending}
-            className="gradient-primary text-primary-foreground"
-          >
-            Save
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button
+              disabled={form.formState.isSubmitting}
+              type="submit"
+              className="bg-sky-100 disabled::bg-sky-100/50 hover:bg-sky-100/80 text-primary-foreground"
+            >
+              {form.formState.isSubmitting ? "Updating..." : "Update"}
+            </Button>
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
@@ -85,14 +143,27 @@ export function EditDialog({
 
 export function DeleteDialog({
   id,
+  thumbnailUrl,
   onClose,
 }: {
-  id: string | null;
+  id: string;
+  thumbnailUrl: string;
   onClose: () => void;
 }) {
-  // const del = useDeleteRecording();
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  if (!id) return null;
+  const removeRecording = async () => {
+    setIsDeleting(true);
+    const { error } = await deleteVideo(id, thumbnailUrl);
+    if (error) {
+      toast.error(error);
+      setIsDeleting(false);
+      return;
+    }
+    setIsDeleting(false);
+    toast.success("Video deleted successfully");
+    onClose();
+  };
 
   return (
     <AlertDialog open onOpenChange={onClose}>
@@ -111,12 +182,11 @@ export function DeleteDialog({
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction
-            variant="destructive"
             size=""
-            // onClick={() => del.mutate(id, { onSuccess: onClose })}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            variant="destructive"
+            onClick={removeRecording}
           >
-            Delete
+            {isDeleting ? "Deleting..." : "Delete"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -131,14 +201,40 @@ export function ShareDialog({
   recording: typeof videos.$inferSelect;
   onClose: () => void;
 }) {
-  // const update = useUpdateRecording();
-  const publicUrl = `${window.location.origin}/share/${recording.publicVideoId}`;
+  const [visibility, setVisibility] = useState(
+    recording.visibility === "public",
+  );
+  const [optimisticVisibility, setOptimisticVisibility] =
+    useOptimistic(visibility);
+
+  const publicUrl = recording.publicVideoId
+    ? `${window.location.origin}/share/${recording.publicVideoId}`
+    : "Generating link...";
   const privateUrl = `${window.location.origin}/view/${recording.videoId}`;
 
   const copyUrl = (url: string, label: string) => {
     navigator.clipboard.writeText(url);
     toast.success("Copied!", {
       description: `${label} link copied to clipboard`,
+    });
+  };
+
+  const handleVisibilityChange = (isPublic: boolean) => {
+    const newVisibility = isPublic ? "public" : "private";
+    startTransition(async () => {
+      setOptimisticVisibility(isPublic);
+      const { data, error } = await updateVideoVisibility(
+        recording.videoId,
+        newVisibility,
+      );
+      if (!data || error) {
+        toast.error(error);
+        return;
+      }
+      startTransition(() => {
+        setVisibility(data.visibility === "public");
+      });
+      toast.success("Video visibility updated successfully");
     });
   };
 
@@ -156,15 +252,16 @@ export function ShareDialog({
                 Anyone with the link can view
               </p>
             </div>
+
             <Switch
-              checked={recording.visibility === "public"}
-              // onCheckedChange={(checked) =>
-              // update.mutate({ id: recording.id, is_public: checked })
-              // }
+              checked={optimisticVisibility}
+              onCheckedChange={handleVisibilityChange}
+              // disabled={optimisticVisibility !== visibility}
+              className="data-checked:bg-sky-100 cursor-pointer"
             />
           </div>
 
-          {recording.visibility === "public" && (
+          {optimisticVisibility && (
             <div className="space-y-2">
               <Label>Public URL</Label>
               <div className="flex gap-2">
@@ -172,6 +269,7 @@ export function ShareDialog({
                 <Button
                   variant="outline"
                   size="icon"
+                  disabled={!recording.publicVideoId}
                   onClick={() => copyUrl(publicUrl, "Public")}
                 >
                   <Copy className="h-4 w-4" />

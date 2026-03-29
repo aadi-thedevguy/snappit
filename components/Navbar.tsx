@@ -30,7 +30,7 @@ const Navbar = () => {
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-xl">
-      <div className="container flex h-16 items-center justify-between px-4">
+      <div className="w-full flex h-16 items-center justify-between px-4">
         <Link href="/" className="flex items-center gap-2.5">
           <div className="p-1.5 rounded-lg gradient-primary">
             <Image
@@ -61,7 +61,7 @@ const Navbar = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem className="text-gray-100 text-xs" disabled>
+                <DropdownMenuItem className="text-gray-800 text-xs" disabled>
                   {user?.email}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={signOut} className="text-sky-100">

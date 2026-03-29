@@ -31,7 +31,10 @@ type VideoType = typeof videos.$inferSelect;
 
 const VideoGrid = ({ videos }: { videos: VideoType[] }) => {
   const [editRecording, setEditRecording] = useState<VideoType | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteRecording, setDeleteRecording] = useState({
+    id: "",
+    thumbnailUrl: "",
+  });
   const [shareRecording, setShareRecording] = useState<VideoType | null>(null);
   // const [copied, setCopied] = useState(false);
 
@@ -52,7 +55,12 @@ const VideoGrid = ({ videos }: { videos: VideoType[] }) => {
           key={video.id}
           recording={video}
           onEdit={() => setEditRecording(video)}
-          onDelete={() => setDeleteId(video.id)}
+          onDelete={() =>
+            setDeleteRecording({
+              id: video?.videoId,
+              thumbnailUrl: video?.thumbnailUrl,
+            })
+          }
           onShare={() => setShareRecording(video)}
         />
       ))}
@@ -62,7 +70,17 @@ const VideoGrid = ({ videos }: { videos: VideoType[] }) => {
           onClose={() => setEditRecording(null)}
         />
       )}
-      <DeleteDialog id={deleteId} onClose={() => setDeleteId(null)} />
+      {deleteRecording.id && (
+        <DeleteDialog
+          {...deleteRecording}
+          onClose={() =>
+            setDeleteRecording({
+              id: "",
+              thumbnailUrl: "",
+            })
+          }
+        />
+      )}
       {shareRecording && (
         <ShareDialog
           recording={shareRecording}
@@ -70,58 +88,6 @@ const VideoGrid = ({ videos }: { videos: VideoType[] }) => {
         />
       )}
     </section>
-    // <Link href={`/video/${id}`} className="video-card">
-    //   <Image
-    //     src={thumbnail}
-    //     width={290}
-    //     height={160}
-    //     alt="thumbnail"
-    //     className="thumbnail"
-    //   />
-    //   <article>
-    //     <div>
-    //       <figure>
-    //         <ImageWithFallback
-    //           src={userImg}
-    //           width={34}
-    //           height={34}
-    //           alt="avatar"
-    //           className="rounded-full aspect-square"
-    //         />
-    //         <figcaption>
-    //           <h3>{username}</h3>
-    //           <p>{visibility}</p>
-    //         </figcaption>
-    //       </figure>
-    //       <aside>
-    //         <EyeIcon className="w-4 h-4" />
-    //         <span>{views}</span>
-    //       </aside>
-    //     </div>
-    //     <h2>
-    //       {title} -{" "}
-    //       {createdAt.toLocaleDateString("en-US", {
-    //         year: "numeric",
-    //         month: "short",
-    //         day: "numeric",
-    //       })}
-    //     </h2>
-    //   </article>
-    //   <button onClick={handleCopy} className="copy-btn">
-    //     {copied ? (
-    //       <Check className="w-4 h-4 text-green-600" />
-    //     ) : (
-    //       <LinkIcon className="w-4 h-4" />
-    //     )}
-    //   </button>
-    //   {duration && (
-    //     <div className="duration">
-    //       {duration < 60
-    //         ? `00:${duration}`
-    //         : `${Math.floor(duration / 60)}:${duration % 60}`}
-    //     </div>
-    //   )}
-    // </Link>
   );
 };
 
@@ -139,9 +105,8 @@ function VideoCard({
   onShare: () => void;
 }) {
   return (
-    <Link href={`/video/${recording.videoId}`}>
-      <Card className="group shadow-card hover:shadow-elegant transition-all duration-300 overflow-hidden border-border">
-        {/* Thumbnail */}
+    <Card className="group shadow-card hover:shadow-elegant transition-all duration-300 overflow-hidden border-border">
+      <Link href={`/video/${recording.videoId}`}>
         <div className="aspect-video bg-muted relative overflow-hidden">
           {recording.thumbnailUrl ? (
             <Image
@@ -180,46 +145,43 @@ function VideoCard({
             </Badge>
           </div>
         </div>
+      </Link>
 
-        <CardContent className="p-4">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <h3 className="font-medium text-foreground truncate">
-                {recording.title}
-              </h3>
-              <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                <Eye className="h-3 w-3" />
-                {recording.views}
-              </div>
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-medium text-foreground truncate">
+              {recording.title}
+            </h3>
+            <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+              <Eye className="h-3 w-3" />
+              {recording.views}
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onShare}>
-                  <LinkIcon className="mr-2 h-4 w-4" /> Share
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={onEdit}>
-                  <Pencil className="mr-2 h-4 w-4" /> Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={onDelete}
-                  className="text-destructive"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" /> Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
-        </CardContent>
-      </Card>
-    </Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={onShare} className="text-gray-100">
+                <LinkIcon className="mr-2 h-4 w-4" /> Share
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onEdit} className="text-sky-100">
+                <Pencil className="mr-2 h-4 w-4" /> Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onDelete} className="text-destructive">
+                <Trash2 className="mr-2 h-4 w-4" /> Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

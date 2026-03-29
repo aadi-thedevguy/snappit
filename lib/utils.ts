@@ -2,6 +2,33 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { ilike, sql } from "drizzle-orm";
 import { videos } from "@/drizzle/schema";
+import z from "zod";
+
+export const formSchema = z.object({
+  title: z
+    .string()
+    .min(5, "Video title must be at least 5 characters.")
+    .max(100, "Video title must be at most 100 characters."),
+  description: z
+    .string()
+    .min(20, "Description must be at least 20 characters.")
+    .max(500, "Description must be at most 500 characters."),
+  visibility: z.enum(["public", "private"]),
+  duration: z.number(),
+});
+
+export const updateFormSchema = z.object({
+  title: z
+    .string()
+    .min(5, "Video title must be at least 5 characters.")
+    .max(100, "Video title must be at most 100 characters."),
+  description: z
+    .string()
+    .min(20, "Description must be at least 20 characters.")
+    .max(500, "Description must be at most 500 characters."),
+  visibility: z.enum(["public", "private"]),
+  videoId: z.string(),
+});
 
 export const formatDuration = (duration: number): string => {
   const hours = Math.floor(duration / 3600);
@@ -18,7 +45,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function generatePublicVideoUrl() {
+export function generatePublicVideoId() {
   const str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   let result = "";
   for (let i = 0; i < 9; i++) {
@@ -51,22 +78,6 @@ export const getEnv = (key: string): string => {
   const value = process.env[key];
   if (!value) throw new Error(`Missing required env: ${key}`);
   return value;
-};
-
-// Higher order function to handle errors
-export const withErrorHandling = <T, A extends unknown[]>(
-  fn: (...args: A) => Promise<T>,
-) => {
-  return async (...args: A): Promise<T> => {
-    try {
-      const result = await fn(...args);
-      return result;
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error occurred";
-      return errorMessage as unknown as T;
-    }
-  };
 };
 
 export const getOrderByClause = (filter?: string) => {

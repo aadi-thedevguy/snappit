@@ -23,7 +23,6 @@ const SignIn = () => {
     const { error } = await authClient.signIn.social({
       provider: "google",
     });
-    console.log("error: ", error);
     if (error) {
       toast.error(error.message || error.statusText || "Sign in failed");
       setLoading(false);
