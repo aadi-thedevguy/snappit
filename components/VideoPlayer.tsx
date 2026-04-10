@@ -198,35 +198,17 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     togglePlayPause(e);
   };
 
-  const handleProgress = () => {
-    const player = playerRef.current;
-    if (!player || state.seeking) return;
-
-    setState((prevState) => ({
-      ...prevState,
-      // loadedSeconds: player.buffered?.end(player.buffered?.length - 1),
-      // loaded:
-      //   player.buffered?.end(player.buffered?.length - 1) / player.duration,
-      playedSeconds: player.currentTime,
-      played: state.duration ? player.currentTime / state.duration : 0,
-    }));
-  };
-
-  const handleRateChange = () => {
-    if (playerRef.current) {
+  const handleProgress = (progress: {
+    played: number;
+    playedSeconds: number;
+  }) => {
+    if (!state.seeking) {
       setState((prevState) => ({
         ...prevState,
-        playbackRate:
-          playerRef?.current?.playbackRate || prevState.playbackRate,
+        playedSeconds: progress.playedSeconds,
+        played: progress.played,
       }));
     }
-  };
-
-  const handleDurationChange = () => {
-    const player = playerRef.current;
-    if (!player) return;
-
-    setState((prevState) => ({ ...prevState, duration: player.duration }));
   };
 
   const handleSetPlaybackRate = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -264,23 +246,20 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     const currentTime = playerRef.current.currentTime;
     const newTime = Math.max(0, Math.min(state.duration, currentTime + sec));
-
     setState((prevState) => ({
       ...prevState,
-      playedSeconds: newTime,
       played: prevState.duration ? newTime / prevState.duration : 0,
+      playedSeconds: newTime,
     }));
+    playerRef.current.currentTime = newTime;
   };
 
   const handleSeekMouseUp = (event: React.SyntheticEvent<HTMLInputElement>) => {
     const inputTarget = event.target as HTMLInputElement;
     setState((prevState) => ({ ...prevState, seeking: false }));
     if (playerRef.current) {
-      const internalPlayer = (playerRef.current as any).getInternalPlayer?.();
-      const seekTo = Number.parseFloat(inputTarget.value) * state.duration;
-      if (internalPlayer) {
-        internalPlayer.currentTime = seekTo;
-      }
+      playerRef.current.currentTime =
+        Number.parseFloat(inputTarget.value) * playerRef.current.duration;
     }
   };
 
@@ -292,14 +271,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       ...prev,
       isPip: !prev.isPip,
     }));
-  };
-
-  const handleEnterPictureInPicture = () => {
-    setState((prevState) => ({ ...prevState, isPip: true }));
-  };
-
-  const handleLeavePictureInPicture = () => {
-    setState((prevState) => ({ ...prevState, isPip: false }));
   };
 
   // Toggle mute
@@ -403,12 +374,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             onPlay={() => setState((prev) => ({ ...prev, isPlaying: true }))}
             onPause={() => setState((prev) => ({ ...prev, isPlaying: false }))}
             onEnded={() => setState((prev) => ({ ...prev, isPlaying: false }))}
-            onProgress={handleProgress}
-            onRateChange={handleRateChange}
-            onDurationChange={handleDurationChange}
             onTimeUpdate={handleTimeUpdate}
-            onEnterPictureInPicture={handleEnterPictureInPicture}
-            onLeavePictureInPicture={handleLeavePictureInPicture}
             onError={(e) => {
               console.error("Video error:", e);
               setState((prev) => ({ ...prev, isLoaded: false }));
@@ -460,7 +426,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 onTouchEnd={handleSeekMouseUp}
                 className="absolute w-full h-2 opacity-0 cursor-pointer z-10"
               />
-              <div className="absolute w-full h-2 bg-[#23262F] rounded-full overflow-hidden">
+              <div className="absolute w-full h-2 bg-gray-700 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-sky-500 rounded-full"
                   style={{ width: `${state.played * 100}%` }}

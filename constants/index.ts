@@ -1,6 +1,6 @@
 // Size Constants
-export const MAX_VIDEO_SIZE = 500 * 1024 * 1024;
-export const MAX_THUMBNAIL_SIZE = 10 * 1024 * 1024;
+export const MAX_VIDEO_SIZE = 500 * 1024 * 1024; // 500mb
+export const MAX_THUMBNAIL_SIZE = 10 * 1024 * 1024; //10mb
 
 export const DEFAULT_AVATAR_URL =
   "https://api.dicebear.com/9.x/avataaars-neutral/svg";
