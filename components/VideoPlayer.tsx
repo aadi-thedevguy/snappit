@@ -22,9 +22,8 @@ import {
   SkipBack,
   SkipForward,
 } from "lucide-react";
-import ReactPlayer from "react-player";
 
-interface VideoPlayerProps {
+interface NativeVideoPlayerProps {
   videoId: string;
   videoUrl: string;
   initialPlaybackRate?: number;
@@ -47,7 +46,7 @@ interface VideoPlayerState {
   showOverlay: boolean;
 }
 
-const VideoPlayer: React.FC<VideoPlayerProps> = ({
+const NativeVideoPlayer: React.FC<NativeVideoPlayerProps> = ({
   videoId,
   videoUrl,
   initialPlaybackRate = 1,
@@ -99,14 +98,20 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const togglePlayPause = useCallback((e?: React.SyntheticEvent) => {
     e?.preventDefault();
     e?.stopPropagation();
+
     setState((prev) => {
       const willPlay = !prev.isPlaying;
       if (overlayTimeoutRef.current) clearTimeout(overlayTimeoutRef.current);
+
       if (willPlay) {
+        playerRef.current?.play().catch(console.error);
         overlayTimeoutRef.current = setTimeout(() => {
           setState((prev) => ({ ...prev, showOverlay: false }));
         }, 3000);
+      } else {
+        playerRef.current?.pause();
       }
+
       return {
         ...prev,
         isPlaying: willPlay,
@@ -121,11 +126,28 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     e?.stopPropagation();
     if (!document.fullscreenElement) {
       playerContainerRef.current?.requestFullscreen();
-      setState((prev) => ({ ...prev, isFullscreen: true }));
     } else {
       document.exitFullscreen();
-      setState((prev) => ({ ...prev, isFullscreen: false }));
     }
+  }, []);
+
+  const skip = useCallback((sec: number) => {
+    setState((prevState) => {
+      if (!playerRef.current || prevState.seeking) return prevState;
+
+      const currentTime = playerRef.current.currentTime;
+      const newTime = Math.max(
+        0,
+        Math.min(prevState.duration, currentTime + sec),
+      );
+
+      playerRef.current.currentTime = newTime;
+      return {
+        ...prevState,
+        played: prevState.duration ? newTime / prevState.duration : 0,
+        playedSeconds: newTime,
+      };
+    });
   }, []);
 
   useEffect(() => {
@@ -149,40 +171,34 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           break;
         case "ArrowUp":
           e.preventDefault();
-          setState((prev) => ({
-            ...prev,
-            volume: Math.min(1, prev.volume + 0.1),
-            isMuted: false,
-          }));
+          setState((prev) => {
+            const newVol = Math.min(1, prev.volume + 0.1);
+            if (playerRef.current) {
+              playerRef.current.volume = newVol;
+              playerRef.current.muted = false;
+            }
+            return { ...prev, volume: newVol, isMuted: false };
+          });
           break;
         case "ArrowDown":
           e.preventDefault();
-          setState((prev) => ({
-            ...prev,
-            volume: Math.max(0, prev.volume - 0.1),
-            isMuted: false,
-          }));
+          setState((prev) => {
+            const newVol = Math.max(0, prev.volume - 0.1);
+            if (playerRef.current) {
+              playerRef.current.volume = newVol;
+              playerRef.current.muted = false;
+            }
+            return { ...prev, volume: newVol, isMuted: false };
+          });
           break;
-        // case "ArrowLeft":
-        //   e.preventDefault();
-        //   if (playerRef.current) {
-        //     const player = playerRef.current as any;
-        //     const currentTime = player.getCurrentTime
-        //       ? player.getCurrentTime()
-        //       : 0;
-        //     player.seekTo(Math.max(0, currentTime - 10));
-        //   }
-        //   break;
-        // case "ArrowRight":
-        //   e.preventDefault();
-        //   if (playerRef.current) {
-        //     const player = playerRef.current as any;
-        //     const currentTime = player.getCurrentTime
-        //       ? player.getCurrentTime()
-        //       : 0;
-        //     player.seekTo(Math.min(duration, currentTime + 10));
-        //   }
-        //   break;
+        case "ArrowLeft":
+          e.preventDefault();
+          skip(-5);
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          skip(5);
+          break;
       }
     };
 
@@ -190,7 +206,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [togglePlayPause, toggleFullscreen, state.duration, duration]);
+  }, [togglePlayPause, toggleFullscreen, skip]);
 
   const handleContainerClick = (e: React.SyntheticEvent) => {
     e.preventDefault();
@@ -198,33 +214,30 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     togglePlayPause(e);
   };
 
-  const handleProgress = (progress: {
-    played: number;
-    playedSeconds: number;
-  }) => {
-    if (!state.seeking) {
-      setState((prevState) => ({
-        ...prevState,
-        playedSeconds: progress.playedSeconds,
-        played: progress.played,
-      }));
-    }
-  };
-
   const handleSetPlaybackRate = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newRate = Number(e.target.value);
-    if (!Number.isFinite(newRate) || newRate <= 0) return; // Prevent invalid rates
+    if (!Number.isFinite(newRate) || newRate <= 0) return;
+    if (playerRef.current) {
+      playerRef.current.playbackRate = newRate;
+    }
     setState((prevState) => ({ ...prevState, playbackRate: newRate }));
   };
 
   const handleTimeUpdate = () => {
     const player = playerRef.current;
-    if (!player || !player.duration || state.seeking) return;
+    if (!player || state.seeking) return;
+
+    const currentDuration =
+      player.duration && isFinite(player.duration)
+        ? player.duration
+        : state.duration;
+
+    if (!currentDuration) return;
 
     setState((prevState) => ({
       ...prevState,
       playedSeconds: player.currentTime,
-      played: player.currentTime / player.duration,
+      played: player.currentTime / currentDuration,
     }));
   };
 
@@ -235,53 +248,55 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   const handleSeekChange = (event: React.SyntheticEvent<HTMLInputElement>) => {
     const inputTarget = event.target as HTMLInputElement;
+    const newPlayed = Number.parseFloat(inputTarget.value);
     setState((prevState) => ({
       ...prevState,
-      played: Number.parseFloat(inputTarget.value),
+      played: newPlayed,
+      playedSeconds: prevState.duration * newPlayed,
     }));
-  };
-
-  const skip = (sec: number) => {
-    if (!playerRef.current || state.seeking) return;
-
-    const currentTime = playerRef.current.currentTime;
-    const newTime = Math.max(0, Math.min(state.duration, currentTime + sec));
-    setState((prevState) => ({
-      ...prevState,
-      played: prevState.duration ? newTime / prevState.duration : 0,
-      playedSeconds: newTime,
-    }));
-    playerRef.current.currentTime = newTime;
   };
 
   const handleSeekMouseUp = (event: React.SyntheticEvent<HTMLInputElement>) => {
     const inputTarget = event.target as HTMLInputElement;
+    const newPlayed = Number.parseFloat(inputTarget.value);
     setState((prevState) => ({ ...prevState, seeking: false }));
     if (playerRef.current) {
-      playerRef.current.currentTime =
-        Number.parseFloat(inputTarget.value) * playerRef.current.duration;
+      playerRef.current.currentTime = newPlayed * state.duration;
     }
   };
 
   // Toggle PiP mode
-  const togglePip = (e?: React.SyntheticEvent) => {
+  const togglePip = async (e?: React.SyntheticEvent) => {
     e?.preventDefault();
     e?.stopPropagation();
-    setState((prev) => ({
-      ...prev,
-      isPip: !prev.isPip,
-    }));
+    try {
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+      } else if (playerRef.current) {
+        await playerRef.current.requestPictureInPicture();
+      }
+    } catch (err) {
+      console.error("PIP Error:", err);
+    }
   };
 
   // Toggle mute
   const toggleMute = (e?: React.SyntheticEvent) => {
     e?.preventDefault();
     e?.stopPropagation();
-    setState((prev) => ({
-      ...prev,
-      isMuted: !prev.isMuted,
-      volume: prev.isMuted ? prev.volume || 0.5 : 0,
-    }));
+    setState((prev) => {
+      const isMuted = !prev.isMuted;
+      const volume = isMuted ? 0 : prev.volume || 0.5;
+      if (playerRef.current) {
+        playerRef.current.muted = isMuted;
+        playerRef.current.volume = volume;
+      }
+      return {
+        ...prev,
+        isMuted,
+        volume,
+      };
+    });
   };
 
   // Handle volume change
@@ -289,10 +304,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     event: React.SyntheticEvent<HTMLInputElement>,
   ) => {
     const inputTarget = event.target as HTMLInputElement;
+    const newVolume = Number.parseFloat(inputTarget.value);
+    if (playerRef.current) {
+      playerRef.current.volume = newVolume;
+      playerRef.current.muted = newVolume === 0;
+    }
     setState((prevState) => ({
       ...prevState,
-      volume: Number.parseFloat(inputTarget.value),
-      isMuted: false,
+      volume: newVolume,
+      isMuted: newVolume === 0,
     }));
   };
 
@@ -325,8 +345,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   }, [videoId, state.isPlaying, state.isLoaded, state.hasIncrementedView]);
 
-  // Clean up timeouts on unmount
-  // Listen for fullscreenchange events to update isFullscreen state
   useEffect(() => {
     const handleFullscreenChange = () => {
       setState((prev) => ({
@@ -334,7 +352,23 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         isFullscreen: !!document.fullscreenElement,
       }));
     };
+    const handlePipChange = () => {
+      setState((prev) => ({
+        ...prev,
+        isPip: !!document.pictureInPictureElement,
+      }));
+    };
+
     document.addEventListener("fullscreenchange", handleFullscreenChange);
+    playerRef.current?.addEventListener(
+      "enterpictureinpicture",
+      handlePipChange,
+    );
+    playerRef.current?.addEventListener(
+      "leavepictureinpicture",
+      handlePipChange,
+    );
+
     return () => {
       if (overlayTimeoutRef.current) {
         clearTimeout(overlayTimeoutRef.current);
@@ -343,9 +377,24 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     };
   }, []);
 
+  const handleMouseMove = () => {
+    if (!state.isPlaying) return;
+    setState((prev) => ({ ...prev, showOverlay: true }));
+    if (overlayTimeoutRef.current) clearTimeout(overlayTimeoutRef.current);
+    overlayTimeoutRef.current = setTimeout(() => {
+      setState((prev) => ({ ...prev, showOverlay: false }));
+    }, 3000);
+  };
+
   return (
     <div
       ref={playerContainerRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={() =>
+        setState((prev) =>
+          prev.isPlaying ? { ...prev, showOverlay: false } : prev,
+        )
+      }
       className="relative w-full max-w-full rounded-xl bg-[#181A20] shadow-lg overflow-hidden aspect-video flex flex-col"
     >
       <Suspense
@@ -357,24 +406,38 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           }`}
           onClick={handleContainerClick}
         >
-          <ReactPlayer
+          <video
             ref={playerRef}
             src={videoUrl}
-            playing={state.isPlaying}
-            loop={false}
-            controls={false}
             playsInline
-            width="100%"
-            height="100%"
-            pip={state.isPip}
-            playbackRate={state.playbackRate}
-            volume={state.volume}
-            muted={state.isMuted}
-            onReady={() => setState((prev) => ({ ...prev, isLoaded: true }))}
+            className="w-full h-full object-contain"
+            onLoadedData={() => {
+              setState((prev) => ({ ...prev, isLoaded: true }));
+              if (playerRef.current) {
+                playerRef.current.playbackRate = state.playbackRate;
+              }
+            }}
             onPlay={() => setState((prev) => ({ ...prev, isPlaying: true }))}
             onPause={() => setState((prev) => ({ ...prev, isPlaying: false }))}
-            onEnded={() => setState((prev) => ({ ...prev, isPlaying: false }))}
+            onEnded={() =>
+              setState((prev) => ({
+                ...prev,
+                isPlaying: false,
+                showOverlay: true,
+              }))
+            }
             onTimeUpdate={handleTimeUpdate}
+            onDurationChange={() => {
+              if (
+                playerRef.current?.duration &&
+                isFinite(playerRef.current.duration)
+              ) {
+                setState((prev) => ({
+                  ...prev,
+                  duration: playerRef.current!.duration,
+                }));
+              }
+            }}
             onError={(e) => {
               console.error("Video error:", e);
               setState((prev) => ({ ...prev, isLoaded: false }));
@@ -462,13 +525,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 <div className="hidden md:flex items-center gap-2">
                   <button
                     className="bg-transparent hover:bg-[#23262F] transition"
-                    onClick={() => skip(-10)}
+                    onClick={() => skip(-5)}
                   >
                     <SkipBack className="h-5 w-5 text-white" />
                   </button>
                   <button
                     className="bg-transparent hover:bg-[#23262F] transition"
-                    onClick={() => skip(10)}
+                    onClick={() => skip(5)}
                   >
                     <SkipForward className="h-5 w-5 text-white" />
                   </button>
@@ -546,4 +609,4 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   );
 };
 
-export default VideoPlayer;
+export default NativeVideoPlayer;
