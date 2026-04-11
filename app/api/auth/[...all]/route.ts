@@ -12,8 +12,8 @@ import { NextRequest, NextResponse } from "next/server";
 const emailValidation = aj.withRule(
   validateEmail({
     mode: "LIVE",
-    block: ["DISPOSABLE", "INVALID", "NO_MX_RECORDS"],
-  })
+    deny: ["DISPOSABLE", "INVALID", "NO_MX_RECORDS"],
+  }),
 );
 
 const rateLimit = aj.withRule(
@@ -22,13 +22,13 @@ const rateLimit = aj.withRule(
     interval: "1m",
     max: 30,
     characteristics: ["fingerprint"],
-  })
+  }),
 );
 
 const shieldValidation = aj.withRule(
   shield({
     mode: "LIVE",
-  })
+  }),
 );
 
 const protectedAuth = async (req: NextRequest): Promise<ArcjetDecision> => {
@@ -62,26 +62,36 @@ const authHandlers = toNextJsHandler(auth.handler);
 export const { GET } = authHandlers;
 
 export const POST = async (req: NextRequest) => {
-
   try {
     const decision = await protectedAuth(req);
     if (decision.isDenied()) {
       if (decision.reason.isEmail()) {
-        return NextResponse.json({ message: "Email validation failed" }, { status: 400 });
+        return NextResponse.json(
+          { message: "Email validation failed" },
+          { status: 400 },
+        );
       }
       if (decision.reason.isRateLimit()) {
-        return NextResponse.json({ message: "Rate limit exceeded" }, { status: 429 });
+        return NextResponse.json(
+          { message: "Rate limit exceeded" },
+          { status: 429 },
+        );
       }
       if (decision.reason.isShield()) {
-        return NextResponse.json({ message: "Shield validation failed" }, { status: 400 });
+        return NextResponse.json(
+          { message: "Shield validation failed" },
+          { status: 400 },
+        );
       }
     }
-
   } catch (error) {
     if (error instanceof Error) {
       return NextResponse.json({ message: error.message }, { status: 500 });
     }
-    return NextResponse.json({ message: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { message: "Internal server error" },
+      { status: 500 },
+    );
   }
 
   return authHandlers.POST(req);

@@ -12,17 +12,18 @@ const ImageWithFallback = ({
   const [imgSrc, setImgSrc] = useState<string>(src || fallback);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setError(null);
     setImgSrc(src || fallback);
   }, [src, fallback]);
 
   return (
-      <Image
-        alt={alt}
-        onError={() => setError(true)}
-        src={error ? fallback : imgSrc}
-        {...props}
-      />
+    <Image
+      alt={alt}
+      onError={() => setError(true)}
+      src={error ? fallback : imgSrc}
+      {...props}
+    />
   );
 };
 

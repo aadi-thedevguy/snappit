@@ -13,6 +13,15 @@ export const auth = betterAuth({
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      mapProfileToUser: (profile) => {
+        return {
+          username: profile.name,
+          image:
+            profile.picture ||
+            "https://api.dicebear.com/9.x/avataaars-neutral/svg?seed=" +
+              encodeURIComponent(profile.name || "User"),
+        };
+      },
     },
   },
   plugins: [nextCookies()],

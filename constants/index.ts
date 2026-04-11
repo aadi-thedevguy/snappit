@@ -1,8 +1,9 @@
 // Size Constants
-export const MAX_VIDEO_SIZE = 500 * 1024 * 1024;
-export const MAX_THUMBNAIL_SIZE = 10 * 1024 * 1024;
+export const MAX_VIDEO_SIZE = 500 * 1024 * 1024; // 500mb
+export const MAX_THUMBNAIL_SIZE = 10 * 1024 * 1024; //10mb
 
-export const DEFAULT_AVATAR_URL = "https://api.dicebear.com/9.x/avataaars-neutral/svg";
+export const DEFAULT_AVATAR_URL =
+  "https://api.dicebear.com/9.x/avataaars-neutral/svg";
 
 export const CDN = {
   VIDEO_URL: (videoId: string) =>
@@ -29,8 +30,3 @@ export const DEFAULT_RECORDING_CONFIG = {
   height: 1080,
   frameRate: 30,
 };
-
-// Filter Options
-export const filterOptions = ["Most Viewed", "Most Recent"];
-
-export const visibilities: Visibility[] = ["public", "private"];

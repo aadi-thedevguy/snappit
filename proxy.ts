@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  
+
   // Check if this is a share path
   if (pathname.startsWith("/share/")) {
     return NextResponse.next();
   }
 
-  const sessionCookie = getSessionCookie(request);  
+  const sessionCookie = getSessionCookie(request);
   // For other routes, check for session
   try {
     if (!sessionCookie) {

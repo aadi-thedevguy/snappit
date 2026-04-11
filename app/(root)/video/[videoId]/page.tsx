@@ -1,42 +1,51 @@
 import { redirect } from "next/navigation";
 
-import { VideoDetailHeader, VideoInfo, VideoPlayer } from "@/components";
+import VideoDetailHeader from "@/components/VideoDetailHeader";
+import VideoInfo from "@/components/VideoInfo";
+import VideoPlayer from "@/components/VideoPlayer";
 import { getVideoById } from "@/lib/actions/video";
 
 const page = async ({ params }: Params) => {
   const { videoId } = await params;
 
-  const videoData = await getVideoById(videoId);
-  if (!videoData) redirect("/404");
+  const { data: videoData, error } = await getVideoById(videoId);
+  if (!videoData || error) redirect("/404");
 
   const { user, video } = videoData;
 
   return (
-    <main className="wrapper page">
-      <VideoDetailHeader
-        title={video.title}
-        createdAt={video.createdAt}
-        userImg={user?.image}
-        username={user?.name}
-        videoId={video.videoId}
-        ownerId={video.userId}
-        visibility={video.visibility}
-        thumbnailUrl={video.thumbnailUrl}
-        publicVideoId={video.publicVideoId ?? undefined}
-      />
+    <main className="min-h-screen bg-background">
+      <section className="container mx-auto max-w-6xl px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-5">
+            <VideoDetailHeader
+              title={video.title}
+              createdAt={video.createdAt}
+              userImg={user?.image}
+              username={user?.name}
+              videoId={video.videoId}
+              publicVideoId={video.publicVideoId ?? undefined}
+              views={video.views}
+            />
 
-      <section className="video-details">
-        <div className="content">
-          <VideoPlayer videoId={video.videoId} videoUrl={video.videoUrl} duration={video.duration ?? 0} />
+            <div className="rounded-xl overflow-hidden shadow-card bg-foreground/5">
+              <VideoPlayer
+                videoId={video.videoId}
+                videoUrl={video.videoUrl}
+                duration={video.duration ?? 0}
+              />
+            </div>
+          </div>
+          <VideoInfo
+            title={video.title}
+            createdAt={video.createdAt}
+            description={video.description}
+            videoId={videoId}
+            videoUrl={video.videoUrl}
+            duration={video.duration || 0}
+            shareable={true}
+          />
         </div>
-
-        <VideoInfo
-          title={video.title}
-          createdAt={video.createdAt}
-          description={video.description}
-          videoId={videoId}
-          videoUrl={video.videoUrl}
-        />
       </section>
     </main>
   );

@@ -2,6 +2,7 @@
 import { cn, generatePagination, updateURLParams } from "@/lib/utils";
 import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Button } from "./ui/button";
 
 type PaginationProps = {
   currentPage?: number;
@@ -28,7 +29,7 @@ const Pagination = ({
         query: queryString?.trim() || null,
         filter: filterString || null,
       },
-      "/"
+      "/",
     );
   };
 
@@ -38,10 +39,10 @@ const Pagination = ({
   };
 
   return (
-    <section className="pagination">
-      <button
+    <footer className="flex justify-between items-center py-5 gap-5 border-t border-gray-20">
+      <Button
         onClick={() => navigateToPage(currentPage - 1)}
-        className={cn("nav-button", {
+        className={cn({
           "pointer-events-none opacity-50": currentPage === 1,
         })}
         disabled={currentPage === 1}
@@ -49,14 +50,14 @@ const Pagination = ({
       >
         <ArrowLeftIcon className="w-4 h-4" />
         Previous
-      </button>
+      </Button>
 
       <div>
         {pages.map((page, index) =>
           page === "..." ? (
             <span key={`ellipsis-${index}`}>...</span>
           ) : (
-            <button
+            <Button
               key={`page-${page}`}
               onClick={() => navigateToPage(page as number)}
               className={cn({
@@ -64,23 +65,22 @@ const Pagination = ({
               })}
             >
               {page}
-            </button>
-          )
+            </Button>
+          ),
         )}
       </div>
 
-      <button
+      <Button
         onClick={() => navigateToPage(currentPage + 1)}
-        className={cn("nav-button", {
+        className={cn({
           "pointer-events-none opacity-50": currentPage === totalPages,
         })}
         disabled={currentPage === totalPages}
-        aria-disabled={currentPage === totalPages}
       >
         Next
         <ArrowRightIcon className="w-4 h-4" />
-      </button>
-    </section>
+      </Button>
+    </footer>
   );
 };
 
