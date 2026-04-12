@@ -32,7 +32,6 @@ const AWS_REGION = getEnv("AWS_REGION");
 const S3_BUCKET_NAME = getEnv("S3_BUCKET_NAME");
 
 const s3 = new S3Client({
-  // @ts-expect-error
   // credentials: fromEnv(),
   credentials: {
     accessKeyId: AWS_ACCESS_KEY_ID,
@@ -438,25 +437,33 @@ export const updateVideoDetails = async (videoDetails: {
 
 export const deleteVideo = async (videoId: string, thumbnailUrl: string) => {
   try {
-    // Delete video and thumbnail from S3
-    const s3VideoKey = videoId;
     const thumbnailPath =
       thumbnailUrl.split("/")[thumbnailUrl.split("/").length - 1]; // get the path after the last slash
 
-    await Promise.all([
-      s3.send(
+    // Delete video and thumbnail from S3
+    if (!thumbnailPath) {
+      await s3.send(
         new DeleteObjectCommand({
           Bucket: S3_BUCKET_NAME,
-          Key: s3VideoKey,
+          Key: videoId,
         }),
-      ),
-      s3.send(
-        new DeleteObjectCommand({
-          Bucket: S3_BUCKET_NAME,
-          Key: thumbnailPath,
-        }),
-      ),
-    ]);
+      );
+    } else {
+      await Promise.all([
+        s3.send(
+          new DeleteObjectCommand({
+            Bucket: S3_BUCKET_NAME,
+            Key: videoId,
+          }),
+        ),
+        s3.send(
+          new DeleteObjectCommand({
+            Bucket: S3_BUCKET_NAME,
+            Key: thumbnailPath,
+          }),
+        ),
+      ]);
+    }
 
     // Delete from database
     await db.delete(videos).where(eq(videos.videoId, videoId));

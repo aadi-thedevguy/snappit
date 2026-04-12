@@ -199,44 +199,12 @@ const UploadPage = () => {
       }
       handleVideoSelect(file);
 
-      form.setValue("duration", pending.duration);
+      if (pending.duration > 0) {
+        form.setValue("duration", Math.floor(pending.duration));
+      }
+
       await generateAndSetThumbnail(pending.blob);
-      await clearPendingUpload();
       return;
-    }
-
-    // Check for extension data via query param
-    const params = new URLSearchParams(window.location.search);
-    if (
-      params.get("from") === "extension" &&
-      (window as any).chrome?.storage?.local
-    ) {
-      (window as any).chrome.storage.local.get(
-        "pendingRecording",
-        (result: any) => {
-          if (result?.pendingRecording) {
-            const { dataUrl, duration: extDuration } = result.pendingRecording;
-            fetch(dataUrl)
-              .then((r) => r.blob())
-              .then(async (b) => {
-                const file = new File([b], "recording.webm", {
-                  type: "video/webm",
-                  lastModified: Date.now(),
-                });
-                if (videoInputRef.current) {
-                  const dataTransfer = new DataTransfer();
-                  dataTransfer.items.add(file);
-                  videoInputRef.current.files = dataTransfer.files;
-                }
-                handleVideoSelect(file);
-
-                form.setValue("duration", extDuration);
-                await generateAndSetThumbnail(b);
-                (window as any).chrome.storage.local.remove("pendingRecording");
-              });
-          }
-        },
-      );
     }
   };
 
@@ -283,6 +251,8 @@ const UploadPage = () => {
         thumbnailUrl: thumbnailCdnUrl,
       });
 
+      // Clear IndexedDB only after a successful upload
+      await clearPendingUpload();
       router.push(`/video/${videoId}`);
     } catch (error) {
       console.error("Error submitting form:", error);
@@ -383,6 +353,17 @@ const UploadPage = () => {
                     src={videoPreviewUrl ?? undefined}
                     className="w-full aspect-video object-contain"
                     controls
+                    onLoadedMetadata={(e) => {
+                      const video = e.currentTarget;
+                      if (
+                        video.duration &&
+                        video.duration !== Infinity &&
+                        !isNaN(video.duration) &&
+                        form.getValues("duration") <= 0
+                      ) {
+                        form.setValue("duration", Math.floor(video.duration));
+                      }
+                    }}
                   />
                   <button
                     type="button"

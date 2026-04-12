@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { DEFAULT_VIDEO_CONFIG, DEFAULT_RECORDING_CONFIG } from "@/constants";
-import { savePendingUpload } from "@/lib/hooks/videoStore";
+import { savePendingUpload, clearPendingUpload } from "@/lib/hooks/videoStore";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 type RecordingState = "idle" | "recording" | "paused" | "stopped";
@@ -35,6 +35,7 @@ export default function Record() {
   const [duration, setDuration] = useState(0);
   const [timer, setTimer] = useState("0:00");
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [countdown, setCountdown] = useState<number | null>(null);
 
   const updateTimer = useCallback(() => {
     const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
@@ -46,6 +47,9 @@ export default function Record() {
 
   const startRecording = async () => {
     try {
+      // Clear any orphaned recordings from previous abandoned sessions
+      await clearPendingUpload();
+
       const displayStream = await navigator.mediaDevices.getDisplayMedia({
         video: DEFAULT_VIDEO_CONFIG,
         audio: true,
@@ -55,6 +59,17 @@ export default function Record() {
       if (videoRef.current) {
         videoRef.current.srcObject = displayStream;
       }
+
+      setCountdown(3);
+      for (let i = 3; i > 0; i--) {
+        if (!displayStream.active) {
+          setCountdown(null);
+          return;
+        }
+        setCountdown(i);
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+      setCountdown(null);
 
       const mediaRecorder = new MediaRecorder(
         displayStream,
@@ -162,6 +177,13 @@ export default function Record() {
 
   return (
     <div className="container max-w-4xl py-8 px-6 mx-auto">
+      {countdown !== null && (
+        <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/80">
+          <div className="text-white text-[10rem] font-bold animate-pulse">
+            {countdown}
+          </div>
+        </div>
+      )}
       <h1 className="text-3xl font-display font-bold text-foreground mb-8">
         Screen Recorder
       </h1>

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    :root {
+      --color-sky-100: oklch(74.84% 0.155 233.25);
+      --background: oklch(1 0 0);
+      --foreground: oklch(0.145 0 0);
+      --muted: oklch(0.97 0 0);
+      --muted-foreground: oklch(0.556 0 0);
+      --destructive: oklch(0.577 0.245 27.325);
+      --border: oklch(0.922 0 0);
+      --radius: 0.625rem;
+    }
+
+    @font-face {
+      font-family: 'Satoshi';
+      src: url('./fonts/Satoshi-Regular.woff') format('woff');
+      font-weight: 400;
+      font-style: normal;
+    }
+
+    @font-face {
+      font-family: 'Satoshi';
+      src: url('./fonts/Satoshi-Medium.woff2') format('woff');
+      font-weight: 500;
+      font-style: normal;
+    }
+
+    @font-face {
+      font-family: 'Satoshi';
+      src: url('./fonts/Satoshi-Bold.woff2') format('woff');
+      font-weight: 700;
+      font-style: normal;
+    }
+
+    body {
+      font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+      background-color: var(--background);
+      color: var(--foreground);
+      margin: 0;
+      padding: 24px;
+      width: 320px;
+      box-shadow:  0 0 5px 5px rgba(0, 0, 0, 0.2);
+      border-radius: var(--radius)
+    }
+
+    .hidden { display: none !important; }
+    .text-center { text-align: center; }
+    .mb-4 { margin-bottom: 1rem; }
+    .flex { display: flex; }
+    .flex-col { flex-direction: column; }
+    .gap-2 { gap: 0.5rem; }
+    
+    h1 { font-size: 1.25rem; margin: 0 0 0.5rem; font-weight: 700; }
+    p { margin: 0; color: var(--muted-foreground); font-size: 0.875rem; }
+    
+    button {
+      background-color: var(--color-sky-100);
+      color: white;
+      border: none;
+      padding: 0.75rem 1rem;
+      border-radius: calc(var(--radius) * 2);
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s ease;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    button:hover { opacity: 0.7; }
+    button.destructive { background-color: var(--destructive); }
+    button.outline { 
+      background-color: transparent; 
+      color: var(--foreground); 
+      border: 1px solid var(--border); 
+    }
+    button.outline:hover { background-color: var(--muted); }
+  </style>
+</head>
+<body>
+  
+  <div id="loading-view" class="text-center">
+    <p>Checking authentication...</p>
+  </div>
+
+  <div id="unauth-view" class="hidden text-center">
+    <h1>Sign in required</h1>
+    <p class="mb-4">You must be logged in to record.</p>
+    <button id="signInBtn">Sign In</button>
+  </div>
+
+  <div id="idle-view" class="hidden text-center">
+    <div id="userInfo" class="mb-4">
+      <h1 id="userName" style="margin-bottom: 0.25rem;">User</h1>
+      <p id="userEmail">user@example.com</p>
+    </div>
+    <p class="mb-4">Ready to capture your screen?</p>
+    <button id="startBtn">Start Recording</button>
+  </div>
+
+  <div id="recording-view" class="hidden text-center">
+    <p class="mb-4" style="color: var(--destructive); font-weight: bold;">Recording in progress...</p>
+    <button id="stopBtn" class="destructive mb-4">Stop Recording</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

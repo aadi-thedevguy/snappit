@@ -27,22 +27,6 @@ function PublicVideoDetail({ video }: Props) {
           </span>
         </div>
       </div>
-      {/* <div className="flex items-center gap-2">
-        <Button variant="outline" size="icon">
-          <Copy className="h-4 w-4" />
-        </Button>
-        <Badge
-          variant={video.publicVideoId ? "default" : "secondary"}
-          className="gap-1"
-        >
-          {video.publicVideoId ? (
-            <Globe className="h-3 w-3" />
-          ) : (
-            <Lock className="h-3 w-3" />
-          )}
-          {video.publicVideoId ? "Public" : "Private"}
-        </Badge>
-      </div> */}
     </header>
   );
 }

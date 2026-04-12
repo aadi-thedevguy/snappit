@@ -1,3 +1,13 @@
+// Metadata Constants
+export const SITE_URL = "https://snappit.adityakhare.com";
+export const APP_TITLE = "Snappit";
+export const APP_DESCRIPTION =
+  "A powerful, full-stack screen recording and video hosting platform. Record and share seamlessly.";
+export const THUMBNAIL_URL = `${SITE_URL}/assets/images/thumbnail.png`;
+export const FAVICON_URL = `${SITE_URL}/assets/icons/favicon.ico`;
+export const APPLE_ICON_URL = `${SITE_URL}/assets/icons/apple-icon.png`;
+export const MANIFEST_URL = `${SITE_URL}/assets/manifest.json`;
+
 // Size Constants
 export const MAX_VIDEO_SIZE = 500 * 1024 * 1024; // 500mb
 export const MAX_THUMBNAIL_SIZE = 10 * 1024 * 1024; //10mb
