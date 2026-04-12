@@ -1,8 +1,6 @@
 # 🎥 Snappit
 
-<img src="public/assets/images/thumbnail.png" alt="thumbnail image" width="300" height="250" />
-
-# Snappit 
+<img style="margin-inline: auto;" src="public/assets/images/thumbnail.png" alt="thumbnail image" width="100%" height="100%" />
 
 Snappit is a powerful, full-stack screen recording and video hosting platform. It features a modern Next.js web application and a companion Chrome Extension (Manifest V3) that allows users to record their screen, tab, or window seamlessly from anywhere on the web. 
 
@@ -53,10 +51,9 @@ Recorded videos are safely buffered using IndexedDB and ArrayBuffers to handle m
 ## 🚀 Getting Started
 
 ### Prerequisites
-- **Node.js** (v18 or higher)
+- **Node.js** (v22 or higher)
 - **PostgreSQL** database (local or hosted, e.g., Supabase/Neon)
-- **Google Cloud Console** account (for OAuth credentials)
-- **Chromium-based browser** (Chrome, Edge, Brave)
+
 
 ### 1. Fork and Clone the Repository
 
