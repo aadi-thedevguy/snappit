@@ -1,6 +1,6 @@
 // Metadata Constants
 export const SITE_URL = "https://snappit.adityakhare.com";
-export const APP_TITLE = "Snappit";
+export const APP_TITLE = "Snappit - Record your workflows in seconds";
 export const APP_DESCRIPTION =
   "A powerful, full-stack screen recording and video hosting platform. Record and share seamlessly.";
 export const THUMBNAIL_URL = `${SITE_URL}/assets/images/thumbnail.png`;

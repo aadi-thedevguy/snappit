@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     siteName: APP_TITLE,
     images: [
       {
-        url: THUMBNAIL_URL, // Must be an absolute URL
+        url: THUMBNAIL_URL,
         width: 1200,
         height: 630,
         alt: "Snappit Thumbnail",
@@ -44,6 +44,15 @@ export const metadata: Metadata = {
     icon: FAVICON_URL,
     shortcut: FAVICON_URL,
     apple: APPLE_ICON_URL,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: APP_TITLE,
+    description: APP_DESCRIPTION,
+    siteId: SITE_URL,
+    creator: "@Aadi__khare",
+    creatorId: "@Aadi__khare",
+    images: [THUMBNAIL_URL],
   },
   manifest: MANIFEST_URL,
 };
