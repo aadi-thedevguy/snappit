@@ -31,15 +31,14 @@ Recorded videos are safely buffered using IndexedDB and ArrayBuffers to handle m
 - Next.js (App Router)
 - React
 - Tailwind CSS
-- Shadcn UI (Radix Primitives)
-- React Hook Form + Zod (Validation)
+- Shadcn UI
+- React Hook Form + Zod
 
 **Backend & Data:**
-- Next.js Route Handlers
 - Drizzle ORM
 - PostgreSQL
 - Better Auth
-- IndexedDB (Client-side large blob storage)
+- AWS S3 and CloudFront
 
 **Extension:**
 - Chrome Extension API (Manifest V3)
@@ -58,7 +57,7 @@ Recorded videos are safely buffered using IndexedDB and ArrayBuffers to handle m
 ### 1. Fork and Clone the Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/snappit.git
+git clone https://github.com/aadi-thedevguy/snappit.git
 cd snappit
 ```
 

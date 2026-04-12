@@ -48,10 +48,11 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
+    creator: "@Aadi__khare",
     title: APP_TITLE,
     description: APP_DESCRIPTION,
-    creator: "@Aadi__khare",
-    images: [THUMBNAIL_URL],
+    site: SITE_URL,
+    images: THUMBNAIL_URL,
   },
   manifest: MANIFEST_URL,
 };
