@@ -34,6 +34,7 @@ export const metadata: Metadata = {
         url: THUMBNAIL_URL,
         width: 1200,
         height: 630,
+        type: "image/png",
         alt: "Snappit Thumbnail",
       },
     ],
