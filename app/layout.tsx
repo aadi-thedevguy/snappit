@@ -52,7 +52,15 @@ export const metadata: Metadata = {
     title: APP_TITLE,
     description: APP_DESCRIPTION,
     site: SITE_URL,
-    images: THUMBNAIL_URL,
+    images: [
+      {
+        url: THUMBNAIL_URL,
+        width: 1200,
+        height: 630,
+        type: "image/png",
+        alt: "Snappit Thumbnail",
+      },
+    ]
   },
   manifest: MANIFEST_URL,
 };
