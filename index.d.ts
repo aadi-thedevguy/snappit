@@ -13,7 +13,6 @@ declare interface VideoInfoProps {
   createdAt: Date;
   description: string;
   videoId: string;
-  videoUrl: string;
   duration: number;
   shareable?: boolean;
 }
@@ -28,7 +27,7 @@ declare interface VideoDetails {
   videoId: string;
   title: string;
   description: string;
-  thumbnailUrl: string;
+  thumbnailId: string;
   visibility: Visibility;
   duration?: number | null;
 }

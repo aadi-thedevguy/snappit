@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import VideoDetailHeader from "@/components/VideoDetailHeader";
 import VideoInfo from "@/components/VideoInfo";
 import VideoPlayer from "@/components/VideoPlayer";
-import { getVideoById } from "@/lib/actions/video";
+import { getVideoById, generateSignedVideoUrl } from "@/lib/actions/video";
 
 const page = async ({ params }: Params) => {
   const { videoId } = await params;
@@ -12,6 +12,7 @@ const page = async ({ params }: Params) => {
   if (!videoData || error) redirect("/404");
 
   const { user, video } = videoData;
+  const initialSecureUrl = await generateSignedVideoUrl(video.videoId);
 
   return (
     <main className="min-h-screen bg-background">
@@ -31,7 +32,7 @@ const page = async ({ params }: Params) => {
             <div className="rounded-xl overflow-hidden shadow-card bg-foreground/5">
               <VideoPlayer
                 videoId={video.videoId}
-                videoUrl={video.videoUrl}
+                initialSecureUrl={initialSecureUrl}
                 duration={video.duration ?? 0}
               />
             </div>
@@ -41,7 +42,6 @@ const page = async ({ params }: Params) => {
             createdAt={video.createdAt}
             description={video.description}
             videoId={videoId}
-            videoUrl={video.videoUrl}
             duration={video.duration || 0}
             shareable={true}
           />

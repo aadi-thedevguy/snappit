@@ -4,7 +4,6 @@ import { formatDuration } from "@/lib/utils";
 const VideoInfo = ({
   description,
   videoId,
-  videoUrl,
   title,
   shareable,
   duration,
@@ -21,19 +20,6 @@ const VideoInfo = ({
           {shareable && <MetaField label="Video id" value={videoId} />}
           {duration && (
             <MetaField label="Duration" value={formatDuration(duration)} />
-          )}
-          {shareable && (
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Video url</p>
-              <a
-                href={videoUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-md text-sky-100 hover:underline break-all"
-              >
-                {videoUrl}
-              </a>
-            </div>
           )}
         </div>
       </div>

@@ -143,18 +143,18 @@ export function EditDialog({
 
 export function DeleteDialog({
   id,
-  thumbnailUrl,
+  thumbnailId,
   onClose,
 }: {
   id: string;
-  thumbnailUrl: string;
+  thumbnailId: string;
   onClose: () => void;
 }) {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const removeRecording = async () => {
     setIsDeleting(true);
-    const { error } = await deleteVideo(id, thumbnailUrl);
+    const { error } = await deleteVideo(id, thumbnailId);
     if (error) {
       toast.error(error);
       setIsDeleting(false);
@@ -178,11 +178,10 @@ export function DeleteDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel variant="" size="">
+          <AlertDialogCancel>
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction
-            size=""
             variant="destructive"
             onClick={removeRecording}
           >
@@ -204,11 +203,12 @@ export function ShareDialog({
   const [visibility, setVisibility] = useState(
     recording.visibility === "public",
   );
+  const [publicVideoId, setPublicVideoId] = useState(recording.publicVideoId);
   const [optimisticVisibility, setOptimisticVisibility] =
     useOptimistic(visibility);
 
-  const publicUrl = recording.publicVideoId
-    ? `${window.location.origin}/share/${recording.publicVideoId}`
+  const publicUrl = publicVideoId
+    ? `${window.location.origin}/share/${publicVideoId}`
     : "Generating link...";
   const privateUrl = `${window.location.origin}/view/${recording.videoId}`;
 
@@ -233,6 +233,9 @@ export function ShareDialog({
       }
       startTransition(() => {
         setVisibility(data.visibility === "public");
+        if (data.publicVideoId) {
+          setPublicVideoId(data.publicVideoId);
+        }
       });
       toast.success("Video visibility updated successfully");
     });
@@ -269,7 +272,7 @@ export function ShareDialog({
                 <Button
                   variant="outline"
                   size="icon"
-                  disabled={!recording.publicVideoId}
+                  disabled={!publicVideoId}
                   onClick={() => copyUrl(publicUrl, "Public")}
                 >
                   <Copy className="h-4 w-4" />

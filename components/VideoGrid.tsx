@@ -26,6 +26,7 @@ import { videos } from "@/drizzle/schema";
 import { formatDuration } from "@/lib/utils";
 import { useState } from "react";
 import { EditDialog, ShareDialog, DeleteDialog } from "./VideoDialogs";
+import { CDN } from "@/constants";
 
 type VideoType = typeof videos.$inferSelect;
 
@@ -33,7 +34,7 @@ const VideoGrid = ({ videos }: { videos: VideoType[] }) => {
   const [editRecording, setEditRecording] = useState<VideoType | null>(null);
   const [deleteRecording, setDeleteRecording] = useState({
     id: "",
-    thumbnailUrl: "",
+    thumbnailId: "",
   });
   const [shareRecording, setShareRecording] = useState<VideoType | null>(null);
   // const [copied, setCopied] = useState(false);
@@ -58,7 +59,7 @@ const VideoGrid = ({ videos }: { videos: VideoType[] }) => {
           onDelete={() =>
             setDeleteRecording({
               id: video?.videoId,
-              thumbnailUrl: video?.thumbnailUrl,
+              thumbnailId: video?.thumbnailId,
             })
           }
           onShare={() => setShareRecording(video)}
@@ -76,7 +77,7 @@ const VideoGrid = ({ videos }: { videos: VideoType[] }) => {
           onClose={() =>
             setDeleteRecording({
               id: "",
-              thumbnailUrl: "",
+              thumbnailId: "",
             })
           }
         />
@@ -108,9 +109,9 @@ function VideoCard({
     <Card className="group shadow-card hover:shadow-elegant transition-all duration-300 overflow-hidden border-border">
       <Link href={`/video/${recording.videoId}`}>
         <div className="aspect-video bg-muted relative overflow-hidden">
-          {recording.thumbnailUrl ? (
+          {recording.thumbnailId ? (
             <Image
-              src={recording.thumbnailUrl}
+              src={CDN.THUMBNAIL_URL(recording.thumbnailId)}
               alt={recording.title}
               width={300}
               height={200}

@@ -73,9 +73,8 @@ export const videos = createTable("videos", {
   publicVideoId: text("public_video_id").unique(),
   title: text("title").notNull(),
   description: text("description").notNull(),
-  videoUrl: text("video_url").notNull(),
   videoId: text("video_id").notNull(),
-  thumbnailUrl: text("thumbnail_url").notNull(),
+  thumbnailId: text("thumbnail_id").notNull(),
   visibility: text("visibility").$type<"public" | "private">().notNull(),
   userId: text("user_id")
     .notNull()

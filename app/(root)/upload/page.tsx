@@ -241,14 +241,14 @@ const UploadPage = () => {
         });
         return;
       }
-      const { uploadUrl: thumbnailUploadUrl, cdnUrl: thumbnailCdnUrl } =
+      const { uploadUrl: thumbnailUploadUrl, thumbnailId } =
         thumbnailData;
       await uploadFileToStorage(thumbnailFile, thumbnailUploadUrl);
 
       await saveVideoDetails({
         videoId,
         ...values,
-        thumbnailUrl: thumbnailCdnUrl,
+        thumbnailId,
       });
 
       // Clear IndexedDB only after a successful upload

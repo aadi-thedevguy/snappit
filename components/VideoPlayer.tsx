@@ -25,7 +25,7 @@ import {
 
 interface NativeVideoPlayerProps {
   videoId: string;
-  videoUrl: string;
+  initialSecureUrl?: string;
   initialPlaybackRate?: number;
   duration: number;
 }
@@ -48,10 +48,38 @@ interface VideoPlayerState {
 
 const NativeVideoPlayer: React.FC<NativeVideoPlayerProps> = ({
   videoId,
-  videoUrl,
+  initialSecureUrl,
   initialPlaybackRate = 1,
   duration,
 }) => {
+  const [secureVideoUrl, setSecureVideoUrl] = useState<string | null>(initialSecureUrl || null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [isUrlLoading, setIsUrlLoading] = useState(!initialSecureUrl);
+
+  const fetchSecureUrl = useCallback(async () => {
+    setIsUrlLoading(true);
+    setFetchError(null);
+    try {
+      const response = await fetch(`/api/videos/${videoId}/play`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'You do not have permission to view this video.');
+      }
+      const data = await response.json();
+      setSecureVideoUrl(data.signedUrl);
+    } catch (err: any) {
+      setFetchError(err.message);
+    } finally {
+      setIsUrlLoading(false);
+    }
+  }, [videoId]);
+
+  useEffect(() => {
+    if (!initialSecureUrl) {
+      fetchSecureUrl();
+    }
+  }, [initialSecureUrl, fetchSecureUrl]);
+
   const [state, setState] = useState<VideoPlayerState>({
     isLoaded: false,
     hasIncrementedView: false,
@@ -406,9 +434,20 @@ const NativeVideoPlayer: React.FC<NativeVideoPlayerProps> = ({
           }`}
           onClick={handleContainerClick}
         >
+          {isUrlLoading && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80">
+              <Loader2 className="w-10 h-10 text-sky-500 animate-spin" />
+            </div>
+          )}
+          {fetchError && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80">
+              <div className="text-red-500 p-4 border border-red-500 rounded bg-red-50/10 backdrop-blur">{fetchError}</div>
+            </div>
+          )}
           <video
             ref={playerRef}
-            src={videoUrl}
+            src={secureVideoUrl || undefined}
+            controlsList="nodownload"
             playsInline
             className="w-full h-full object-contain"
             onLoadedData={() => {
@@ -441,6 +480,13 @@ const NativeVideoPlayer: React.FC<NativeVideoPlayerProps> = ({
             onError={(e) => {
               console.error("Video error:", e);
               setState((prev) => ({ ...prev, isLoaded: false }));
+              
+              // If the initial server-provided URL failed to load, it might have expired
+              // Let's try to fetch a fresh one from our API!
+              if (initialSecureUrl && secureVideoUrl === initialSecureUrl) {
+                console.log("[VideoPlayer] Video failed to load, attempting to fetch a fresh URL...");
+                fetchSecureUrl();
+              }
             }}
           />
 

@@ -11,6 +11,7 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { getSignedUrl as getCFRSignedUrl } from '@aws-sdk/cloudfront-signer';
 import { auth } from "@/lib/auth";
 import {
   doesTitleMatch,
@@ -88,7 +89,7 @@ export const getVideoUploadUrl = async () => {
       s3,
       new PutObjectCommand({
         Bucket: S3_BUCKET_NAME,
-        Key: videoId,
+        Key: `videos/${videoId}`,
         // Expires: new Date(Date.now() + 3600 * 1000),
       }),
       {
@@ -115,7 +116,6 @@ export const getThumbnailUploadUrl = async (videoId: string) => {
   try {
     // AWS S3 Implementation
     const thumbnailId = `thumbnail-${Date.now()}-${videoId}`;
-    const cdnUrl = CDN.THUMBNAIL_URL(thumbnailId);
 
     // Generate presigned URL using AWS SDK
     // Note: This requires AWS SDK configuration in the server
@@ -123,15 +123,14 @@ export const getThumbnailUploadUrl = async (videoId: string) => {
       s3,
       new PutObjectCommand({
         Bucket: S3_BUCKET_NAME,
-        Key: thumbnailId,
-        // Expires: new Date(Date.now() + 3600 * 1000),
+        Key: `thumbnails/${thumbnailId}`,
       }),
       {
         expiresIn: 3600,
       },
     );
 
-    return { data: { uploadUrl, cdnUrl } };
+    return { data: { uploadUrl, thumbnailId } };
   } catch (error) {
     console.error("Error getting thumbnail upload URL:", error);
     return { error: "An unexpected error occurred." };
@@ -146,19 +145,24 @@ export const saveVideoDetails = async (videoDetails: VideoDetails) => {
 
     // AWS Implementation
     const now = new Date();
-    const videoUrl = CDN.VIDEO_URL(videoDetails.videoId);
 
-    await db.insert(videos).values({
-      ...videoDetails,
-      videoUrl,
-      ...(videoDetails.visibility === "public" && {
-        publicVideoId: generatePublicVideoId(),
-      }),
-      userId,
-      createdAt: now,
-      updatedAt: now,
-    });
-
+    await db
+      .insert(videos)
+      .values({
+        videoId: videoDetails.videoId,
+        thumbnailId: videoDetails.thumbnailId,
+        title: videoDetails.title,
+        description: videoDetails.description,
+        visibility: videoDetails.visibility,
+        ...(videoDetails.visibility === "public" && {
+          publicVideoId: generatePublicVideoId(),
+        }),
+        duration: videoDetails.duration,
+        userId,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
     revalidatePaths(["/"]);
     return { data: null };
   } catch (error) {
@@ -198,7 +202,6 @@ export const getVideoByPublicVideoId = async (publicVideoId: string) => {
         publicVideoId: videos.publicVideoId,
         title: videos.title,
         description: videos.description,
-        videoUrl: videos.videoUrl,
         views: videos.views,
         duration: videos.duration,
         createdAt: videos.createdAt,
@@ -350,13 +353,14 @@ export const updateVideoVisibility = async (
           (visibility === "public" ? generatePublicVideoId() : null),
       })
       .where(and(eq(videos.videoId, videoId), eq(videos.userId, userId)))
-      .returning({ visibility: videos.visibility });
+      .returning({ visibility: videos.visibility, publicVideoId: videos.publicVideoId });
 
     revalidatePaths(["/"]);
 
     return {
       data: {
         visibility: data[0].visibility,
+        publicVideoId: data[0].publicVideoId,
       },
     };
   } catch (error) {
@@ -435,35 +439,23 @@ export const updateVideoDetails = async (videoDetails: {
   }
 };
 
-export const deleteVideo = async (videoId: string, thumbnailUrl: string) => {
+export const deleteVideo = async (videoId: string, thumbnailId: string) => {
   try {
-    const thumbnailPath =
-      thumbnailUrl.split("/")[thumbnailUrl.split("/").length - 1]; // get the path after the last slash
-
     // Delete video and thumbnail from S3
-    if (!thumbnailPath) {
-      await s3.send(
+    await Promise.all([
+      s3.send(
         new DeleteObjectCommand({
           Bucket: S3_BUCKET_NAME,
-          Key: videoId,
+          Key: `videos/${videoId}`,
         }),
-      );
-    } else {
-      await Promise.all([
-        s3.send(
-          new DeleteObjectCommand({
-            Bucket: S3_BUCKET_NAME,
-            Key: videoId,
-          }),
-        ),
-        s3.send(
-          new DeleteObjectCommand({
-            Bucket: S3_BUCKET_NAME,
-            Key: thumbnailPath,
-          }),
-        ),
-      ]);
-    }
+      ),
+      s3.send(
+        new DeleteObjectCommand({
+          Bucket: S3_BUCKET_NAME,
+          Key: `thumbnails/${thumbnailId}`,
+        }),
+      ),
+    ]);
 
     // Delete from database
     await db.delete(videos).where(eq(videos.videoId, videoId));
@@ -474,3 +466,18 @@ export const deleteVideo = async (videoId: string, thumbnailUrl: string) => {
     return { error: "An unexpected error occurred." };
   }
 };
+
+export const generateSignedVideoUrl = async (s3ObjectKey: string) => {
+  const keyPairId = getEnv("CLOUDFRONT_KEY_PAIR_ID");
+  const privateKey = getEnv("CLOUDFRONT_PRIVATE_KEY").replace(/\\n/g, '\n');
+  const url = CDN.VIDEO_URL(s3ObjectKey)
+  // 1 hour expiry window
+  const expiry = new Date(Date.now() + 1000 * 60 * 60);
+
+  return getCFRSignedUrl({
+    url,
+    keyPairId,
+    privateKey,
+    dateLessThan: expiry.toISOString(),
+  });
+}

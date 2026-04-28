@@ -17,9 +17,9 @@ export const DEFAULT_AVATAR_URL =
 
 export const CDN = {
   VIDEO_URL: (videoId: string) =>
-    `https://d28vypb2sw9vap.cloudfront.net/${videoId}`,
+    `https://d28vypb2sw9vap.cloudfront.net/videos/${videoId}`,
   THUMBNAIL_URL: (thumbnailId: string) =>
-    `https://d28vypb2sw9vap.cloudfront.net/${thumbnailId}`,
+    `https://d28vypb2sw9vap.cloudfront.net/thumbnails/${thumbnailId}`,
 };
 
 // Video Configuration
