@@ -469,7 +469,10 @@ export const deleteVideo = async (videoId: string, thumbnailId: string) => {
 
 export const generateSignedVideoUrl = async (s3ObjectKey: string) => {
   const keyPairId = getEnv("CLOUDFRONT_KEY_PAIR_ID");
-  const privateKey = getEnv("CLOUDFRONT_PRIVATE_KEY").replace(/\\n/g, '\n');
+  const rawKey = getEnv("CLOUDFRONT_PRIVATE_KEY");
+  // Remove surrounding quotes if the user accidentally pasted them in Vercel
+  const strippedKey = rawKey.replace(/^["']|["']$/g, '');
+  const privateKey = strippedKey.replace(/\\n/g, '\n');
   const url = CDN.VIDEO_URL(s3ObjectKey)
   // 1 hour expiry window
   const expiry = new Date(Date.now() + 1000 * 60 * 60);
