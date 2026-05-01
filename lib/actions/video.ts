@@ -11,7 +11,7 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { getSignedUrl as getCFRSignedUrl } from '@aws-sdk/cloudfront-signer';
+import { getSignedUrl as getCFRSignedUrl } from "@aws-sdk/cloudfront-signer";
 import { auth } from "@/lib/auth";
 import {
   doesTitleMatch,
@@ -24,7 +24,6 @@ import aj, { fixedWindow, request } from "../arcjet";
 import { getEnv } from "@/lib/utils";
 import z from "zod";
 import { updateFormSchema } from "@/lib/utils";
-// import { fromEnv } from "@aws-sdk/credential-providers";
 
 // AWS Configuration
 const AWS_ACCESS_KEY_ID = getEnv("AWS_ACCESS_KEY_ID");
@@ -90,7 +89,6 @@ export const getVideoUploadUrl = async () => {
       new PutObjectCommand({
         Bucket: S3_BUCKET_NAME,
         Key: `videos/${videoId}`,
-        // Expires: new Date(Date.now() + 3600 * 1000),
       }),
       {
         expiresIn: 3600,
@@ -143,8 +141,23 @@ export const saveVideoDetails = async (videoDetails: VideoDetails) => {
     await validateWithArcjet(userId);
     formSchema.parse(videoDetails);
 
-    // AWS Implementation
     const now = new Date();
+    let isUnique = false;
+    let publicVideoId = "";
+
+    while (!isUnique) {
+      publicVideoId = generatePublicVideoId();
+
+      const [result] = await db
+        .select({ publicVideoId: videos.publicVideoId })
+        .from(videos)
+        .where(eq(videos.publicVideoId, publicVideoId));
+
+      // If result is undefined, we didn't find a match, meaning it's unique!
+      if (!result) {
+        isUnique = true;
+      }
+    }
 
     await db
       .insert(videos)
@@ -154,10 +167,8 @@ export const saveVideoDetails = async (videoDetails: VideoDetails) => {
         title: videoDetails.title,
         description: videoDetails.description,
         visibility: videoDetails.visibility,
-        ...(videoDetails.visibility === "public" && {
-          publicVideoId: generatePublicVideoId(),
-        }),
         duration: videoDetails.duration,
+        publicVideoId,
         userId,
         createdAt: now,
         updatedAt: now,
@@ -348,12 +359,12 @@ export const updateVideoVisibility = async (
       .set({
         visibility,
         updatedAt: new Date(),
-        publicVideoId:
-          existing.publicVideoId ||
-          (visibility === "public" ? generatePublicVideoId() : null),
       })
       .where(and(eq(videos.videoId, videoId), eq(videos.userId, userId)))
-      .returning({ visibility: videos.visibility, publicVideoId: videos.publicVideoId });
+      .returning({
+        visibility: videos.visibility,
+        publicVideoId: videos.publicVideoId,
+      });
 
     revalidatePaths(["/"]);
 
@@ -406,11 +417,6 @@ export const updateVideoDetails = async (videoDetails: {
       .set({
         ...videoDetails,
         updatedAt: new Date(),
-        publicVideoId:
-          existing.publicVideoId ||
-          (videoDetails.visibility === "public"
-            ? generatePublicVideoId()
-            : null),
       })
       .where(
         and(
@@ -471,9 +477,9 @@ export const generateSignedVideoUrl = async (s3ObjectKey: string) => {
   const keyPairId = getEnv("CLOUDFRONT_KEY_PAIR_ID");
   const rawKey = getEnv("CLOUDFRONT_PRIVATE_KEY");
   // Remove surrounding quotes if the user accidentally pasted them in Vercel
-  const strippedKey = rawKey.replace(/^["']|["']$/g, '');
-  const privateKey = strippedKey.replace(/\\n/g, '\n');
-  const url = CDN.VIDEO_URL(s3ObjectKey)
+  const strippedKey = rawKey.replace(/^["']|["']$/g, "");
+  const privateKey = strippedKey.replace(/\\n/g, "\n");
+  const url = CDN.VIDEO_URL(s3ObjectKey);
   // 1 hour expiry window
   const expiry = new Date(Date.now() + 1000 * 60 * 60);
 
@@ -483,4 +489,4 @@ export const generateSignedVideoUrl = async (s3ObjectKey: string) => {
     privateKey,
     dateLessThan: expiry.toISOString(),
   });
-}
+};
