@@ -25,7 +25,7 @@ const page = async ({ params }: Params) => {
               userImg={user?.image}
               username={user?.name}
               videoId={video.videoId}
-              publicVideoId={video.publicVideoId ?? undefined}
+              publicVideoId={video.visibility === "public" ? video.publicVideoId : undefined}
               views={video.views}
             />
 
