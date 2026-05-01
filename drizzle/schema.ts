@@ -70,7 +70,7 @@ export const verification = createTable("verification", {
 
 export const videos = createTable("videos", {
   id: uuid("id").primaryKey().defaultRandom().unique(),
-  publicVideoId: text("public_video_id").unique(),
+  publicVideoId: text("public_video_id").unique().notNull(),
   title: text("title").notNull(),
   description: text("description").notNull(),
   videoId: text("video_id").notNull(),
