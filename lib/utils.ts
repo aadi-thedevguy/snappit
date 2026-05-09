@@ -145,3 +145,18 @@ export const doesTitleMatch = (videos: any, searchQuery: string) =>
     sql`REPLACE(REPLACE(REPLACE(LOWER(${videos.title}), '-', ''), '.', ''), ' ', '')`,
     `%${searchQuery.replace(/[-. ]/g, "").toLowerCase()}%`,
   );
+
+export const formatPrivateKey = (rawKey: string) => {
+  const header = "-----BEGIN RSA PRIVATE KEY-----";
+  const footer = "-----END RSA PRIVATE KEY-----";
+
+  let payload = rawKey
+    .replace(/-----BEGIN (RSA )?PRIVATE KEY-----/g, "")
+    .replace(/-----END (RSA )?PRIVATE KEY-----/g, "")
+    .replace(/\\n/g, "")
+    .replace(/['"]/g, "")
+    .replace(/\s+/g, "");
+
+  const chunks = payload.match(/.{1,64}/g) || [];
+  return `${header}\n${chunks.join("\n")}\n${footer}`;
+};

@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 
 import VideoDetailHeader from "@/components/VideoDetailHeader";
 import VideoInfo from "@/components/VideoInfo";
@@ -9,7 +9,7 @@ const page = async ({ params }: Params) => {
   const { videoId } = await params;
 
   const { data: videoData, error } = await getVideoById(videoId);
-  if (!videoData || error) redirect("/404");
+  if (!videoData || error) notFound();
 
   const { user, video } = videoData;
   const initialSecureUrl = await generateSignedVideoUrl(video.videoId);

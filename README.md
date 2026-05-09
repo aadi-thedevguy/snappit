@@ -73,20 +73,9 @@ pnpm install
 
 ### 3. Environment Variables
 
-Create a `.env` (or `.env.local`) file in the root directory and add the following keys:
-
-```env
-# Application
-NEXT_PUBLIC_BASE_URL=http://localhost:3000
-
-# Database (Drizzle / Postgres)
-DATABASE_URL=postgresql://user:password@localhost:5432/snappit
-
-# Better Auth & Google OAuth
-BETTER_AUTH_SECRET=your_super_secret_string
-GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your_google_client_secret
-```
+Rename `.env.example` to `.env` (or `.env.local`) in the root directory and add the required variables.
+*Follow these docs for AWS cloudfront and s3 setup*
+[https://github.com/aws-samples/amazon-cloudfront-signed-urls-using-lambda-secretsmanager/tree/main/1-Create_S3_Bucket](https://github.com/aws-samples/amazon-cloudfront-signed-urls-using-lambda-secretsmanager/tree/main/1-Create_S3_Bucket)
 
 *(Note: Ensure your Google OAuth credentials have `http://localhost:3000/api/auth/callback/google` added to the Authorized redirect URIs).*
 

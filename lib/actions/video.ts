@@ -8,6 +8,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import {
   PutObjectCommand,
   DeleteObjectCommand,
+  GetObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -15,6 +16,7 @@ import { getSignedUrl as getCFRSignedUrl } from "@aws-sdk/cloudfront-signer";
 import { auth } from "@/lib/auth";
 import {
   doesTitleMatch,
+  formatPrivateKey,
   formSchema,
   generatePublicVideoId,
   getOrderByClause,
@@ -89,6 +91,7 @@ export const getVideoUploadUrl = async () => {
       new PutObjectCommand({
         Bucket: S3_BUCKET_NAME,
         Key: `videos/${videoId}`,
+        ContentType: "video/mp4"
       }),
       {
         expiresIn: 3600,
@@ -275,6 +278,7 @@ export const getAllVideos = async (
   pageNumber: number = 1,
   pageSize: number = 8,
 ) => {
+  throw new Error("Not implemented");
   try {
     const currentUserId = (
       await auth.api.getSession({ headers: await headers() })
@@ -476,9 +480,7 @@ export const deleteVideo = async (videoId: string, thumbnailId: string) => {
 export const generateSignedVideoUrl = async (s3ObjectKey: string) => {
   const keyPairId = getEnv("CLOUDFRONT_KEY_PAIR_ID");
   const rawKey = getEnv("CLOUDFRONT_PRIVATE_KEY");
-  // Remove surrounding quotes if the user accidentally pasted them in Vercel
-  const strippedKey = rawKey.replace(/^["']|["']$/g, "");
-  const privateKey = strippedKey.replace(/\\n/g, "\n");
+  const privateKey = formatPrivateKey(rawKey);
   const url = CDN.VIDEO_URL(s3ObjectKey);
   // 1 hour expiry window
   const expiry = new Date(Date.now() + 1000 * 60 * 60);
@@ -489,4 +491,23 @@ export const generateSignedVideoUrl = async (s3ObjectKey: string) => {
     privateKey,
     dateLessThan: expiry.toISOString(),
   });
+};
+
+export const generateDownloadSignedUrl = async (s3ObjectKey: string, title?: string) => {
+  try {
+    const filename = title ? encodeURIComponent(`${title}.mp4`) : "snappit-video.mp4";
+
+    const command = new GetObjectCommand({
+      Bucket: S3_BUCKET_NAME,
+      Key: `videos/${s3ObjectKey}`,
+      ResponseContentDisposition: `attachment; filename="${filename}"`
+    });
+
+    // 1 hour expiry
+    const signedUrl = await getSignedUrl(s3, command, { expiresIn: 3600 });
+    return signedUrl;
+  } catch (error) {
+    console.error("Error generating S3 download URL:", error);
+    throw new Error("Failed to generate download URL");
+  }
 };

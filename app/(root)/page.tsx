@@ -16,7 +16,7 @@ const ProfilePage = async ({ searchParams }: ParamsWithSearch) => {
     await auth.api.getSession({ headers: await headers() })
   )?.user.id;
 
-  if (!currentUserId) redirect("/404");
+  if (!currentUserId) redirect("/sign-in");
 
   const { data, error } = await getAllVideos(
     currentUserId,
@@ -24,9 +24,9 @@ const ProfilePage = async ({ searchParams }: ParamsWithSearch) => {
     filter,
     Number(page) || 1,
   );
-  if (!data || error) redirect("/404");
+  if (!data || error) throw new Error("Failed to fetch videos");
   const { videos, pagination, user } = data;
-  if (!user) redirect("/404");
+  if (!user) throw new Error("User not found");
 
   const filtered = videos.map((video) => ({
     id: video.video.id,

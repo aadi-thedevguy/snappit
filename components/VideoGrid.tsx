@@ -11,7 +11,10 @@ import {
   MoreVertical,
   Pencil,
   Trash2,
+  AlertTriangle,
+  Download,
 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,6 +30,7 @@ import { formatDuration } from "@/lib/utils";
 import { useState } from "react";
 import { EditDialog, ShareDialog, DeleteDialog } from "./VideoDialogs";
 import { CDN } from "@/constants";
+import { generateDownloadSignedUrl } from "@/lib/actions/video";
 
 type VideoType = typeof videos.$inferSelect;
 
@@ -37,58 +41,57 @@ const VideoGrid = ({ videos }: { videos: VideoType[] }) => {
     thumbnailId: "",
   });
   const [shareRecording, setShareRecording] = useState<VideoType | null>(null);
-  // const [copied, setCopied] = useState(false);
 
-  // const handleCopy = (e: React.MouseEvent) => {
-  //   e.stopPropagation();
-  //   e.preventDefault();
-  //   navigator.clipboard.writeText(`${window.location.origin}/video/${id}`);
-  //   setCopied(true);
-  //   setTimeout(() => {
-  //     setCopied(false);
-  //   }, 3000);
-  // };
 
   return (
-    <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-      {videos?.map((video) => (
-        <VideoCard
-          key={video.id}
-          recording={video}
-          onEdit={() => setEditRecording(video)}
-          onDelete={() =>
-            setDeleteRecording({
-              id: video?.videoId,
-              thumbnailId: video?.thumbnailId,
-            })
-          }
-          onShare={() => setShareRecording(video)}
-        />
-      ))}
-      {editRecording && (
-        <EditDialog
-          recording={editRecording}
-          onClose={() => setEditRecording(null)}
-        />
-      )}
-      {deleteRecording.id && (
-        <DeleteDialog
-          {...deleteRecording}
-          onClose={() =>
-            setDeleteRecording({
-              id: "",
-              thumbnailId: "",
-            })
-          }
-        />
-      )}
-      {shareRecording && (
-        <ShareDialog
-          recording={shareRecording}
-          onClose={() => setShareRecording(null)}
-        />
-      )}
-    </section>
+    <div className="space-y-6">
+      <Alert variant="default" className="bg-amber-500/10 text-amber-500 border-amber-500/20">
+        <AlertTriangle className="h-4 w-4 stroke-amber-500" />
+        <AlertTitle>Notice</AlertTitle>
+        <AlertDescription>
+          Snappit only keeps your videos in the cloud for a month. If you want it to be permanent, kindly download the video.
+        </AlertDescription>
+      </Alert>
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {videos?.map((video) => (
+          <VideoCard
+            key={video.id}
+            recording={video}
+            onEdit={() => setEditRecording(video)}
+            onDelete={() =>
+              setDeleteRecording({
+                id: video?.videoId,
+                thumbnailId: video?.thumbnailId,
+              })
+            }
+            onShare={() => setShareRecording(video)}
+          />
+        ))}
+        {editRecording && (
+          <EditDialog
+            recording={editRecording}
+            onClose={() => setEditRecording(null)}
+          />
+        )}
+        {deleteRecording.id && (
+          <DeleteDialog
+            {...deleteRecording}
+            onClose={() =>
+              setDeleteRecording({
+                id: "",
+                thumbnailId: "",
+              })
+            }
+          />
+        )}
+        {shareRecording && (
+          <ShareDialog
+            recording={shareRecording}
+            onClose={() => setShareRecording(null)}
+          />
+        )}
+      </section>
+    </div>
   );
 };
 
@@ -105,6 +108,26 @@ function VideoCard({
   onDelete: () => void;
   onShare: () => void;
 }) {
+  const handleDownload = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      const signedUrl = await generateDownloadSignedUrl(
+        recording.videoId,
+        recording.title
+      );
+
+      const a = document.createElement("a");
+      a.href = signedUrl;
+      a.download = `${recording.title}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Download failed:", error);
+    }
+  };
+
   return (
     <Card className="group shadow-card hover:shadow-elegant transition-all duration-300 overflow-hidden border-border">
       <Link href={`/video/${recording.videoId}`}>
@@ -172,6 +195,9 @@ function VideoCard({
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={onShare} className="text-gray-100">
                 <LinkIcon className="mr-2 h-4 w-4" /> Share
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDownload} className="text-gray-100">
+                <Download className="mr-2 h-4 w-4" /> Download
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onEdit} className="text-sky-100">
                 <Pencil className="mr-2 h-4 w-4" /> Edit

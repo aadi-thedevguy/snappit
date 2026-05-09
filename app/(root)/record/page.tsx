@@ -82,7 +82,7 @@ export default function Record() {
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "video/webm" });
+        const blob = new Blob(chunksRef.current, { type: DEFAULT_RECORDING_CONFIG.mimeType });
         setRecordedBlob(blob);
         if (videoRef.current) {
           videoRef.current.srcObject = null;
@@ -136,7 +136,7 @@ export default function Record() {
     const url = URL.createObjectURL(recordedBlob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "recording.webm";
+    a.download = "recording.mp4";
     a.click();
     URL.revokeObjectURL(url);
   };

@@ -11,7 +11,7 @@ interface ErrorProps {
 
 const ErrorPage: React.FC<ErrorProps> = ({ error, reset }: ErrorProps) => {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-linear-to-br from-gray-50 to-blue-100 text-gray-900 font-sans px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-linear-to-tr from-gray-100 to-sky-100 text-gray-900 font-sans px-4">
       <Alert variant="destructive" className="max-w-md">
         <AlertCircleIcon />
         <AlertTitle>
