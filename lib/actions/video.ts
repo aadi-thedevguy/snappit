@@ -91,7 +91,7 @@ export const getVideoUploadUrl = async () => {
       new PutObjectCommand({
         Bucket: S3_BUCKET_NAME,
         Key: `videos/${videoId}`,
-        ContentType: "video/mp4"
+        ContentType: "video/mp4",
       }),
       {
         expiresIn: 3600,
@@ -278,7 +278,6 @@ export const getAllVideos = async (
   pageNumber: number = 1,
   pageSize: number = 8,
 ) => {
-  throw new Error("Not implemented");
   try {
     const currentUserId = (
       await auth.api.getSession({ headers: await headers() })
@@ -493,14 +492,19 @@ export const generateSignedVideoUrl = async (s3ObjectKey: string) => {
   });
 };
 
-export const generateDownloadSignedUrl = async (s3ObjectKey: string, title?: string) => {
+export const generateDownloadSignedUrl = async (
+  s3ObjectKey: string,
+  title?: string,
+) => {
   try {
-    const filename = title ? encodeURIComponent(`${title}.mp4`) : "snappit-video.mp4";
+    const filename = title
+      ? encodeURIComponent(`${title}.mp4`)
+      : "snappit-video.mp4";
 
     const command = new GetObjectCommand({
       Bucket: S3_BUCKET_NAME,
       Key: `videos/${s3ObjectKey}`,
-      ResponseContentDisposition: `attachment; filename="${filename}"`
+      ResponseContentDisposition: `attachment; filename="${filename}"`,
     });
 
     // 1 hour expiry
