@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Karla, Geist } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Toaster } from "sonner";
 import "./globals.css";
 import { satoshi } from "../fonts/font";
@@ -60,7 +62,7 @@ export const metadata: Metadata = {
         type: "image/png",
         alt: "Snappit Thumbnail",
       },
-    ]
+    ],
   },
   manifest: MANIFEST_URL,
 };
@@ -75,6 +77,8 @@ export default function Layout({
       <body
         className={`${geistKarla.variable} ${satoshi.variable} font-karla antialiased`}
       >
+        <SpeedInsights />
+        <Analytics />
         <Toaster richColors position="top-center" />
         {children}
       </body>
