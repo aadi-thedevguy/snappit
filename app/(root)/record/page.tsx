@@ -15,7 +15,8 @@ import {
   AlertCircleIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-import { DEFAULT_VIDEO_CONFIG, DEFAULT_RECORDING_CONFIG } from "@/constants";
+import { DEFAULT_VIDEO_CONFIG } from "@/constants";
+import { buildMediaRecorderOptions } from "@/lib/recordingOptions";
 import { savePendingUpload, clearPendingUpload } from "@/lib/hooks/videoStore";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -26,6 +27,7 @@ export default function Record() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const recordedMimeTypeRef = useRef("video/webm");
   const startTimeRef = useRef<number>(0);
 
   const [state, setState] = useState<RecordingState>("idle");
@@ -45,12 +47,22 @@ export default function Record() {
     setTimer(`${m}:${s.toString().padStart(2, "0")}`);
   }, []);
 
+  const cleanupPreviewStream = useCallback((mediaStream: MediaStream | null) => {
+    mediaStream?.getTracks().forEach((track) => track.stop());
+    setStream(null);
+    setCountdown(null);
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, []);
+
   const startRecording = async () => {
+    let displayStream: MediaStream | null = null;
     try {
       // Clear any orphaned recordings from previous abandoned sessions
       await clearPendingUpload();
 
-      const displayStream = await navigator.mediaDevices.getDisplayMedia({
+      displayStream = await navigator.mediaDevices.getDisplayMedia({
         video: DEFAULT_VIDEO_CONFIG,
         audio: true,
       });
@@ -58,6 +70,22 @@ export default function Record() {
       setStream(displayStream);
       if (videoRef.current) {
         videoRef.current.srcObject = displayStream;
+      }
+
+      // Attach early so browser "Stop sharing" works even if MediaRecorder setup fails
+      const videoTrack = displayStream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.onended = () => {
+          if (
+            mediaRecorderRef.current &&
+            mediaRecorderRef.current.state !== "inactive"
+          ) {
+            mediaRecorderRef.current.stop();
+          } else {
+            cleanupPreviewStream(displayStream);
+            setState("idle");
+          }
+        };
       }
 
       setCountdown(3);
@@ -71,10 +99,14 @@ export default function Record() {
       }
       setCountdown(null);
 
-      const mediaRecorder = new MediaRecorder(
-        displayStream,
-        DEFAULT_RECORDING_CONFIG,
-      );
+      if (!displayStream.active) {
+        cleanupPreviewStream(displayStream);
+        return;
+      }
+
+      const recorderOptions = buildMediaRecorderOptions(displayStream);
+      recordedMimeTypeRef.current = recorderOptions.mimeType || "video/webm";
+      const mediaRecorder = new MediaRecorder(displayStream, recorderOptions);
 
       chunksRef.current = [];
       mediaRecorder.ondataavailable = (e) => {
@@ -82,7 +114,9 @@ export default function Record() {
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: DEFAULT_RECORDING_CONFIG.mimeType });
+        const blob = new Blob(chunksRef.current, {
+          type: recordedMimeTypeRef.current,
+        });
         setRecordedBlob(blob);
         if (videoRef.current) {
           videoRef.current.srcObject = null;
@@ -92,20 +126,15 @@ export default function Record() {
         if (timerRef.current) clearInterval(timerRef.current);
       };
 
-      // Handle user stopping via browser UI
-      displayStream.getVideoTracks()[0].onended = () => {
-        if (mediaRecorderRef.current?.state !== "inactive") {
-          mediaRecorderRef.current?.stop();
-        }
-      };
-
-      mediaRecorder.start(1000);
       mediaRecorderRef.current = mediaRecorder;
+      mediaRecorder.start(1000);
       startTimeRef.current = Date.now();
       timerRef.current = setInterval(updateTimer, 1000);
       setState("recording");
     } catch (err) {
-      if (err instanceof DOMException && err.name !== "NotAllowedError") {
+      cleanupPreviewStream(displayStream);
+      mediaRecorderRef.current = null;
+      if (!(err instanceof DOMException && err.name === "NotAllowedError")) {
         toast.error("Error", {
           description: "Failed to start recording",
         });

@@ -22,21 +22,15 @@ export const CDN = {
     `https://d28vypb2sw9vap.cloudfront.net/thumbnails/${thumbnailId}`,
 };
 
-// Video Configuration
+// Display-capture constraints (no camera-only keys like facingMode)
 export const DEFAULT_VIDEO_CONFIG = {
   width: { ideal: 1920 },
   height: { ideal: 1080 },
   frameRate: { ideal: 30 },
-  aspectRatio: 16 / 9,
-  facingMode: "user",
 };
 
-// Video Recording Configuration
+// Bitrate defaults; mimeType is chosen at runtime via buildMediaRecorderOptions
 export const DEFAULT_RECORDING_CONFIG = {
-  mimeType: "video/webm;codecs=vp9,opus",
   audioBitsPerSecond: 128000,
   videoBitsPerSecond: 2500000,
-  width: 1920,
-  height: 1080,
-  frameRate: 30,
 };
