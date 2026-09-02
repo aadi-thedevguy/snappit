@@ -1,5 +1,6 @@
 import { daysAgo } from "@/lib/utils";
 import { Calendar, Eye } from "lucide-react";
+import PublicVideoDownloadButton from "@/components/PublicVideoDownloadButton";
 
 type Props = {
   video: {
@@ -11,7 +12,7 @@ type Props = {
 };
 function PublicVideoDetail({ video }: Props) {
   return (
-    <header className="flex items-start justify-between gap-4">
+    <header className="flex flex-col items-start justify-between gap-4 sm:flex-row">
       <div className="min-w-0 flex-1">
         <h1 className="text-2xl font-display font-bold text-foreground">
           {video.title}
@@ -27,6 +28,9 @@ function PublicVideoDetail({ video }: Props) {
           </span>
         </div>
       </div>
+      {video.publicVideoId && (
+        <PublicVideoDownloadButton publicVideoId={video.publicVideoId} />
+      )}
     </header>
   );
 }
