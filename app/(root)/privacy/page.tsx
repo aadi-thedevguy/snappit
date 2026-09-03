@@ -47,12 +47,12 @@ const PrivacyPage = () => (
         content: (
           <p>
             You can delete your recordings from Snappit. For privacy questions
-            or account requests, contact us through {" "}
+            or account requests, contact us through{" "}
             <a
-              href="https://adityakhare.com"
+              href="mailto:aadi@adityakhare.com"
               className="text-foreground underline underline-offset-4 transition-colors hover:text-sky-100"
             >
-              adityakhare.com
+              aadi@adityakhare.com
             </a>
             .
           </p>

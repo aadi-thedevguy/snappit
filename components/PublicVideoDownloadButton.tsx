@@ -11,7 +11,7 @@ function PublicVideoDownloadButton({ downloadUrl }: Props) {
     <Button className="w-full sm:w-auto" asChild>
       <a href={downloadUrl}>
         <Download className="h-4 w-4" />
-        Download Video
+        Download
       </a>
     </Button>
   );
