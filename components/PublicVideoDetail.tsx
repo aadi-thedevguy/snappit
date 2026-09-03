@@ -1,6 +1,6 @@
 import { daysAgo } from "@/lib/utils";
 import { Calendar, Eye } from "lucide-react";
-import PublicVideoDownloadButton from "@/components/PublicVideoDownloadButton";
+// import PublicVideoDownloadButton from "@/components/PublicVideoDownloadButton";
 
 type Props = {
   video: {
@@ -28,9 +28,9 @@ function PublicVideoDetail({ video }: Props) {
           </span>
         </div>
       </div>
-      {video.publicVideoId && (
+      /* {video.publicVideoId && (
         <PublicVideoDownloadButton publicVideoId={video.publicVideoId} />
-      )}
+      )} */
     </header>
   );
 }
