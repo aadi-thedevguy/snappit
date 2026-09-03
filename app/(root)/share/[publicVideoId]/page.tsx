@@ -1,7 +1,11 @@
 import { notFound } from "next/navigation";
 import VideoPlayer from "@/components/VideoPlayer";
 import VideoInfo from "@/components/VideoInfo";
-import { getVideoByPublicVideoId, generateSignedVideoUrl } from "@/lib/actions/video";
+import {
+  generateDownloadSignedUrl,
+  generateSignedVideoUrl,
+  getVideoByPublicVideoId,
+} from "@/lib/actions/video";
 import PublicVideoDetail from "@/components/PublicVideoDetail";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
@@ -19,9 +23,10 @@ const page = async ({ params }: Params) => {
   if (!video) notFound();
 
   const initialSecureUrl = await generateSignedVideoUrl(video.videoId);
-  const downloadSecureUrl = await generateSignedVideoUrl(video.videoId, {
-    downloadFilename: video.title,
-  });
+  const downloadSecureUrl = await generateDownloadSignedUrl(
+    video.videoId,
+    video.title,
+  );
 
   return (
     <main className="min-h-screen bg-background">
