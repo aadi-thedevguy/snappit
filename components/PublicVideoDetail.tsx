@@ -28,9 +28,9 @@ function PublicVideoDetail({ video }: Props) {
           </span>
         </div>
       </div>
-      /* {video.publicVideoId && (
+      {/* {video.publicVideoId && (
         <PublicVideoDownloadButton publicVideoId={video.publicVideoId} />
-      )} */
+      )} */}
     </header>
   );
 }
