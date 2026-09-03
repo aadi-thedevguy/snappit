@@ -4,8 +4,9 @@ import { getSessionCookie } from "better-auth/cookies";
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Check if this is a share path
-  if (pathname.startsWith("/share/")) {
+  // Check if this is a public path e.g. terms, privacy, etc.
+  const publicPaths = ["/terms", "/privacy", "/share"];
+  if (publicPaths.some((path) => pathname.startsWith(path))) {
     return NextResponse.next();
   }
 
