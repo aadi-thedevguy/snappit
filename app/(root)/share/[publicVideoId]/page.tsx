@@ -19,6 +19,9 @@ const page = async ({ params }: Params) => {
   if (!video) notFound();
 
   const initialSecureUrl = await generateSignedVideoUrl(video.videoId);
+  const downloadSecureUrl = await generateSignedVideoUrl(video.videoId, {
+    downloadFilename: video.title,
+  });
 
   return (
     <main className="min-h-screen bg-background">
@@ -34,7 +37,10 @@ const page = async ({ params }: Params) => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-5">
-            <PublicVideoDetail video={video} />
+            <PublicVideoDetail
+              video={video}
+              downloadUrl={downloadSecureUrl}
+            />
 
             <div className="rounded-xl overflow-hidden shadow-card bg-foreground/5">
               <VideoPlayer

@@ -1,5 +1,5 @@
 import Footer from "@/components/Footer";
-import RootNavbar from "@/components/RootNavbar";
+import Navbar from "@/components/Navbar";
 
 const RootLayout = ({
   children,
@@ -8,7 +8,7 @@ const RootLayout = ({
 }>) => {
   return (
     <div className="flex min-h-screen flex-col">
-      <RootNavbar />
+      <Navbar />
       <div className="flex flex-1 flex-col">{children}</div>
       <Footer />
     </div>

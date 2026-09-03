@@ -476,16 +476,42 @@ export const deleteVideo = async (videoId: string, thumbnailId: string) => {
   }
 };
 
-export const generateSignedVideoUrl = async (s3ObjectKey: string) => {
+type SignedVideoUrlOptions = {
+  downloadFilename?: string;
+};
+
+export const generateSignedVideoUrl = async (
+  s3ObjectKey: string,
+  options: SignedVideoUrlOptions = {},
+) => {
   const keyPairId = getEnv("CLOUDFRONT_KEY_PAIR_ID");
   const rawKey = getEnv("CLOUDFRONT_PRIVATE_KEY");
   const privateKey = formatPrivateKey(rawKey);
-  const url = CDN.VIDEO_URL(s3ObjectKey);
+  const videoUrl = new URL(CDN.VIDEO_URL(s3ObjectKey));
+
+  if (options.downloadFilename) {
+    const filename = `${options.downloadFilename}.mp4`;
+    const fallbackFilename =
+      `${options.downloadFilename
+        .normalize("NFKD")
+        .replace(/[^\x20-\x7E]/g, "")}.mp4`
+        .replace(/["\\\\\r\n]/g, "")
+        .trim() || "snappit-video.mp4";
+
+    // These S3 response overrides are covered by the CloudFront signature, so
+    // the same video object is delivered as an attachment rather than streamed.
+    videoUrl.searchParams.set(
+      "response-content-disposition",
+      `attachment; filename="${fallbackFilename}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+    );
+    videoUrl.searchParams.set("response-content-type", "video/mp4");
+  }
+
   // 1 hour expiry window
   const expiry = new Date(Date.now() + 1000 * 60 * 60);
 
   return getCFRSignedUrl({
-    url,
+    url: videoUrl.toString(),
     keyPairId,
     privateKey,
     dateLessThan: expiry.toISOString(),
