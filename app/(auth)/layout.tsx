@@ -1,18 +1,16 @@
 import Footer from "@/components/Footer";
-import RootNavbar from "@/components/RootNavbar";
 
-const RootLayout = ({
+const AuthLayout = ({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) => {
   return (
     <div className="flex min-h-screen flex-col">
-      <RootNavbar />
       <div className="flex flex-1 flex-col">{children}</div>
       <Footer />
     </div>
   );
 };
 
-export default RootLayout;
+export default AuthLayout;
