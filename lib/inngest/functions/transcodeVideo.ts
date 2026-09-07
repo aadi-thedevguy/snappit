@@ -20,6 +20,24 @@ import {
   s3,
 } from "@/lib/storage/videoStorage";
 
+type VideoUploadedEventData = { videoId: string };
+type FailedVideoRunEventData = {
+  event?: { data?: Partial<VideoUploadedEventData> };
+};
+
+const getWorkDir = (videoId: string) => join("/tmp", "snappit", videoId);
+
+const markVideoFailed = async (videoId: string, errorMessage: string) => {
+  await db
+    .update(videos)
+    .set({
+      processingStatus: "failed",
+      processingError: errorMessage,
+      updatedAt: new Date(),
+    })
+    .where(eq(videos.videoId, videoId));
+};
+
 const streamBodyToFile = async (body: unknown, path: string) => {
   if (!body) throw new Error("S3 object body was empty");
 
@@ -31,12 +49,21 @@ const streamBodyToFile = async (body: unknown, path: string) => {
   }
 
   if (body instanceof Blob) {
-    await pipeline(Readable.fromWeb(body.stream() as never), createWriteStream(path));
+    await pipeline(
+      Readable.fromWeb(body.stream() as never),
+      createWriteStream(path),
+    );
     return;
   }
 
-  if (typeof body === "object" && body !== null && "transformToWebStream" in body) {
-    const webStream = (body as { transformToWebStream: () => ReadableStream }).transformToWebStream();
+  if (
+    typeof body === "object" &&
+    body !== null &&
+    "transformToWebStream" in body
+  ) {
+    const webStream = (
+      body as { transformToWebStream: () => ReadableStream }
+    ).transformToWebStream();
     await pipeline(Readable.fromWeb(webStream as never), createWriteStream(path));
     return;
   }
@@ -80,27 +107,69 @@ const runFfmpeg = (inputPath: string, outputPath: string) =>
     ffmpeg.on("close", (code) => {
       if (code === 0) {
         resolve();
-      } else {
-        reject(new Error(`ffmpeg exited with code ${code}: ${stderr.slice(-4000)}`));
+        return;
       }
+
+      reject(
+        new Error(`ffmpeg exited with code ${code}: ${stderr.slice(-4000)}`),
+      );
     });
   });
 
 export const transcodeVideoToMp4 = inngest.createFunction(
-  { id: "transcode-video-to-mp4", triggers: [{ event: "video/uploaded" }] },
-  async ({ event, step }) => {
-    const { videoId } = event.data as { videoId: string };
+  {
+    id: "transcode-video-to-mp4",
+    name: "Transcode video to MP4",
+    triggers: [{ event: "video/uploaded" }],
+    idempotency: "event.data.videoId",
+    singleton: { key: "event.data.videoId", mode: "cancel" },
+    concurrency: { limit: 2 },
+    retries: 2,
+    timeouts: { finish: "15m" },
+    cancelOn: [{ event: "video/uploaded", match: "data.videoId" }],
+    onFailure: async ({ event, step }) => {
+      const failureData = event.data as FailedVideoRunEventData;
+      const videoId = failureData.event?.data?.videoId;
+      if (!videoId) return;
+
+      await step.run("mark-video-processing-failed", async () => {
+        await markVideoFailed(videoId, "Video transcoding failed after retries.");
+      });
+
+      await step.run("cleanup-failed-transcode-files", async () => {
+        await rm(getWorkDir(videoId), { recursive: true, force: true });
+      });
+    },
+  },
+  async ({ event, step, attempt, logger }) => {
+    const { videoId } = event.data as VideoUploadedEventData;
     const rawStorageKey = getRawVideoStorageKey(videoId);
     const processedStorageKey = getProcessedVideoStorageKey(videoId);
-    const workDir = join("/tmp", "snappit", videoId);
-    const inputPath = join(workDir, "input.webm");
-    const outputPath = join(workDir, "output.mp4");
+    const workDir = getWorkDir(videoId);
+    const inputPath = join(workDir, `input-attempt-${attempt}.webm`);
+    const outputPath = join(workDir, `output-attempt-${attempt}.mp4`);
 
-    await step.run("mark-processing", async () => {
-      await db
+    const video = await step.run("mark-processing", async () => {
+      const [updatedVideo] = await db
         .update(videos)
-        .set({ processingStatus: "processing", updatedAt: new Date() })
-        .where(eq(videos.videoId, videoId));
+        .set({
+          processingStatus: "processing",
+          processingError: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(videos.videoId, videoId))
+        .returning();
+
+      if (!updatedVideo) throw new Error(`Video ${videoId} was not found`);
+      return updatedVideo;
+    });
+
+    logger.info("Starting video transcode", {
+      videoId,
+      attempt,
+      rawStorageKey,
+      processedStorageKey,
+      duration: video.duration,
     });
 
     try {
@@ -114,7 +183,7 @@ export const transcodeVideoToMp4 = inngest.createFunction(
         await streamBodyToFile(object.Body, inputPath);
       });
 
-      await step.run("transcode-webm-to-mp4", async () => {
+      await step.run("transcode-webm-to-seekable-mp4", async () => {
         await runFfmpeg(inputPath, outputPath);
       });
 
@@ -141,18 +210,6 @@ export const transcodeVideoToMp4 = inngest.createFunction(
           })
           .where(eq(videos.videoId, videoId));
       });
-    } catch (error) {
-      await step.run("mark-failed", async () => {
-        await db
-          .update(videos)
-          .set({
-            processingStatus: "failed",
-            processingError: error instanceof Error ? error.message : "Unknown transcoding error",
-            updatedAt: new Date(),
-          })
-          .where(eq(videos.videoId, videoId));
-      });
-      throw error;
     } finally {
       await step.run("cleanup-temp-files", async () => {
         await rm(workDir, { recursive: true, force: true });

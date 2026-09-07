@@ -167,6 +167,7 @@ export const saveVideoDetails = async (videoDetails: VideoDetails) => {
       .returning();
 
     await inngest.send({
+      id: `${videoDetails.videoId}-uploaded`,
       name: "video/uploaded",
       data: { videoId: videoDetails.videoId },
     });
