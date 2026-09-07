@@ -58,7 +58,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    const playableVideoKey = getPlayableVideoStorageKey(video);
+    const playableVideoKey = await getPlayableVideoStorageKey(video);
     if (!playableVideoKey) {
       return NextResponse.json(
         { error: 'Video is still processing.' },

@@ -1,3 +1,15 @@
+declare interface VideoCardProps {
+  id: string;
+  title: string;
+  thumbnail: string;
+  userImg?: string | null;
+  username?: string;
+  createdAt: Date;
+  views: number;
+  visibility: Visibility;
+  duration?: number | null;
+}
+
 declare interface VideoDetailHeaderProps {
   title: string;
   userImg: string | null | undefined;

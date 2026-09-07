@@ -162,30 +162,33 @@ const UploadPage = () => {
     if (thumbnailInputRef.current) thumbnailInputRef.current.value = "";
   }, [setSafeThumbnailPreviewUrl]);
 
-  const generateAndSetThumbnail = async (videoBlob: Blob) => {
-    try {
-      const thumbnailBlob = await generateThumbnail(videoBlob);
-      if (thumbnailBlob) {
-        const thumbnailFile = new File([thumbnailBlob], "thumbnail.jpg", {
-          type: "image/jpeg",
-          lastModified: Date.now(),
-        });
+  const generateAndSetThumbnail = useCallback(
+    async (videoBlob: Blob) => {
+      try {
+        const thumbnailBlob = await generateThumbnail(videoBlob);
+        if (thumbnailBlob) {
+          const thumbnailFile = new File([thumbnailBlob], "thumbnail.jpg", {
+            type: "image/jpeg",
+            lastModified: Date.now(),
+          });
 
-        if (thumbnailInputRef.current) {
-          const dataTransfer = new DataTransfer();
-          dataTransfer.items.add(thumbnailFile);
-          thumbnailInputRef.current.files = dataTransfer.files;
+          if (thumbnailInputRef.current) {
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(thumbnailFile);
+            thumbnailInputRef.current.files = dataTransfer.files;
+          }
+          handleThumbnailSelect(thumbnailFile);
         }
-        handleThumbnailSelect(thumbnailFile);
+      } catch (err) {
+        console.error("Error generating thumbnail:", err);
+        // thumbnail will be generated at upload time as fallback
       }
-    } catch (err) {
-      console.error("Error generating thumbnail:", err);
-      // thumbnail will be generated at upload time as fallback
-    }
-  };
+    },
+    [handleThumbnailSelect],
+  );
 
   // Check IndexedDB for a pending recording on mount
-  const getDataFromStorage = async () => {
+  const getDataFromStorage = useCallback(async () => {
     const pending = await getPendingUpload();
     if (pending) {
       const file = new File([pending.blob], "recording.webm", {
@@ -206,11 +209,15 @@ const UploadPage = () => {
       await generateAndSetThumbnail(pending.blob);
       return;
     }
-  };
+  }, [form, generateAndSetThumbnail, handleVideoSelect]);
 
   useEffect(() => {
-    getDataFromStorage();
-  }, []);
+    const timeoutId = window.setTimeout(() => {
+      void getDataFromStorage();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [getDataFromStorage]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {

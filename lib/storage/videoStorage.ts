@@ -15,14 +15,14 @@ export const getProcessedVideoStorageKey = (videoId: string) =>
 
 export const getVideoObjectKey = (storageKey: string) => `videos/${storageKey}`;
 
-export const S3_BUCKET_NAME = getEnv("S3_BUCKET_NAME");
+export const S3_BUCKET_NAME = process.env.S3_BUCKET_NAME ?? "";
 
 export const s3 = new S3Client({
   credentials: {
-    accessKeyId: getEnv("AWS_ACCESS_KEY_ID"),
-    secretAccessKey: getEnv("AWS_SECRET_ACCESS_KEY"),
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? "",
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? "",
   },
-  region: getEnv("AWS_REGION"),
+  region: process.env.AWS_REGION ?? "us-east-1",
 });
 
 export async function createRawVideoUploadUrl(

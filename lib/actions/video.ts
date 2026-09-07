@@ -482,7 +482,7 @@ export const deleteVideo = async (videoId: string, thumbnailId: string) => {
   }
 };
 
-export const getPlayableVideoStorageKey = (video: {
+export const getPlayableVideoStorageKey = async (video: {
   videoId: string;
   rawVideoId?: string | null;
   processingStatus?: "uploaded" | "processing" | "ready" | "failed" | null;

@@ -16,7 +16,7 @@ const page = async ({ params }: Params) => {
   if (!videoData || error) notFound();
 
   const { user, video } = videoData;
-  const playableVideoKey = getPlayableVideoStorageKey(video);
+  const playableVideoKey = await getPlayableVideoStorageKey(video);
   const initialSecureUrl = playableVideoKey
     ? await generateSignedVideoUrl(playableVideoKey)
     : undefined;

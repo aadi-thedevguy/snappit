@@ -150,7 +150,7 @@ export const formatPrivateKey = (rawKey: string) => {
   const header = "-----BEGIN RSA PRIVATE KEY-----";
   const footer = "-----END RSA PRIVATE KEY-----";
 
-  let payload = rawKey
+  const payload = rawKey
     .replace(/-----BEGIN (RSA )?PRIVATE KEY-----/g, "")
     .replace(/-----END (RSA )?PRIVATE KEY-----/g, "")
     .replace(/\\n/g, "")
