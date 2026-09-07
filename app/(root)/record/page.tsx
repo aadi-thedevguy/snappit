@@ -165,7 +165,7 @@ export default function Record() {
     const url = URL.createObjectURL(recordedBlob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "recording.mp4";
+    a.download = "recording.webm";
     a.click();
     URL.revokeObjectURL(url);
   };

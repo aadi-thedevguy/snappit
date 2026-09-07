@@ -119,7 +119,7 @@ function VideoCard({
 
       const a = document.createElement("a");
       a.href = signedUrl;
-      a.download = `${recording.title}.mp4`;
+      a.download = `${recording.title}.webm`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
