@@ -3,7 +3,11 @@ import { notFound } from "next/navigation";
 import VideoDetailHeader from "@/components/VideoDetailHeader";
 import VideoInfo from "@/components/VideoInfo";
 import VideoPlayer from "@/components/VideoPlayer";
-import { getVideoById, generateSignedVideoUrl } from "@/lib/actions/video";
+import {
+  generateSignedVideoUrl,
+  getPlayableVideoStorageKey,
+  getVideoById,
+} from "@/lib/actions/video";
 
 const page = async ({ params }: Params) => {
   const { videoId } = await params;
@@ -12,7 +16,10 @@ const page = async ({ params }: Params) => {
   if (!videoData || error) notFound();
 
   const { user, video } = videoData;
-  const initialSecureUrl = await generateSignedVideoUrl(video.videoId);
+  const playableVideoKey = getPlayableVideoStorageKey(video);
+  const initialSecureUrl = playableVideoKey
+    ? await generateSignedVideoUrl(playableVideoKey)
+    : undefined;
 
   return (
     <main className="min-h-screen bg-background">
@@ -30,11 +37,19 @@ const page = async ({ params }: Params) => {
             />
 
             <div className="rounded-xl overflow-hidden shadow-card bg-foreground/5">
-              <VideoPlayer
-                videoId={video.videoId}
-                initialSecureUrl={initialSecureUrl}
-                duration={video.duration ?? 0}
-              />
+              {playableVideoKey ? (
+                <VideoPlayer
+                  videoId={video.videoId}
+                  initialSecureUrl={initialSecureUrl}
+                  duration={video.duration ?? 0}
+                />
+              ) : (
+                <div className="flex aspect-video items-center justify-center p-8 text-center text-muted-foreground">
+                  {video.processingStatus === "failed"
+                    ? "Video processing failed. Please try uploading again."
+                    : "Your video is being processed into a seekable MP4. This usually takes a few minutes."}
+                </div>
+              )}
             </div>
           </div>
           <VideoInfo

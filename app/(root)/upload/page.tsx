@@ -221,7 +221,7 @@ const UploadPage = () => {
         return;
       }
 
-      const { data, error } = await getVideoUploadUrl();
+      const { data, error } = await getVideoUploadUrl(videoFile.type);
       if (!data || error) {
         form.setError("root", {
           message: error || "Failed to retrieve video upload URL.",
@@ -229,7 +229,7 @@ const UploadPage = () => {
         return;
       }
 
-      const { videoId, uploadUrl: videoUploadUrl } = data;
+      const { videoId, rawVideoId, uploadUrl: videoUploadUrl } = data;
       await uploadFileToStorage(videoFile, videoUploadUrl);
 
       const { data: thumbnailData, error: thumbnailError } =
@@ -247,6 +247,8 @@ const UploadPage = () => {
 
       await saveVideoDetails({
         videoId,
+        rawVideoId,
+        rawMimeType: videoFile.type,
         ...values,
         thumbnailId,
       });

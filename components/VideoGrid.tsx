@@ -112,14 +112,18 @@ function VideoCard({
     e.preventDefault();
     e.stopPropagation();
     try {
+      if (recording.processingStatus !== "ready" || !recording.processedVideoId) {
+        return;
+      }
+
       const signedUrl = await generateDownloadSignedUrl(
-        recording.videoId,
-        recording.title
+        recording.processedVideoId,
+        recording.title,
       );
 
       const a = document.createElement("a");
       a.href = signedUrl;
-      a.download = `${recording.title}.webm`;
+      a.download = `${recording.title}.mp4`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -196,8 +200,12 @@ function VideoCard({
               <DropdownMenuItem onClick={onShare} className="text-gray-100">
                 <LinkIcon className="mr-2 h-4 w-4" /> Share
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleDownload} className="text-gray-100">
-                <Download className="mr-2 h-4 w-4" /> Download
+              <DropdownMenuItem
+                onClick={handleDownload}
+                disabled={recording.processingStatus !== "ready"}
+                className="text-gray-100"
+              >
+                <Download className="mr-2 h-4 w-4" /> Download MP4
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onEdit} className="text-sky-100">
                 <Pencil className="mr-2 h-4 w-4" /> Edit
