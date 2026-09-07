@@ -91,7 +91,7 @@ export const getVideoUploadUrl = async () => {
       new PutObjectCommand({
         Bucket: S3_BUCKET_NAME,
         Key: `videos/${videoId}`,
-        ContentType: "video/mp4",
+        ContentType: "video/webm",
       }),
       {
         expiresIn: 3600,
@@ -498,13 +498,14 @@ export const generateDownloadSignedUrl = async (
 ) => {
   try {
     const filename = title
-      ? encodeURIComponent(`${title}.mp4`)
-      : "snappit-video.mp4";
+      ? encodeURIComponent(`${title}.webm`)
+      : "snappit-video.webm";
 
     const command = new GetObjectCommand({
       Bucket: S3_BUCKET_NAME,
       Key: `videos/${s3ObjectKey}`,
       ResponseContentDisposition: `attachment; filename="${filename}"`,
+      ResponseContentType: "video/webm",
     });
 
     // 1 hour expiry
