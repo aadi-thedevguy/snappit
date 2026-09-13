@@ -11,6 +11,8 @@ import PublicVideoDetail from "@/components/PublicVideoDetail";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
 
+import { canDownloadVideo } from "@/lib/utils";
+
 export const revalidate = 60; // Cache this page for 60 seconds
 
 const page = async ({ params }: Params) => {
@@ -27,43 +29,34 @@ const page = async ({ params }: Params) => {
   const initialSecureUrl = playableVideoKey
     ? await generateSignedVideoUrl(playableVideoKey)
     : undefined;
-  const downloadSecureUrl = video.processedVideoId
-    ? await generateDownloadSignedUrl(video.processedVideoId, video.title)
+  const downloadSecureUrl = canDownloadVideo(video)
+    ? await generateDownloadSignedUrl(video.videoId)
     : undefined;
 
   return (
     <main className="min-h-screen bg-background">
       <section className="container mx-auto max-w-6xl px-4 py-8">
-        <Alert className="mb-6 border-amber-500/20 bg-amber-500/10 text-amber-500">
-          <AlertTriangle className="h-4 w-4 stroke-amber-500" />
-          <AlertTitle>Notice</AlertTitle>
-          <AlertDescription>
-            Snappit only keeps videos in the cloud for a month. Download this
-            video if you want to keep it permanently.
-          </AlertDescription>
-        </Alert>
+        {downloadSecureUrl && (
+          <Alert className="mb-6 border-amber-500/20 bg-amber-500/10 text-amber-500">
+            <AlertTriangle className="h-4 w-4 stroke-amber-500" />
+            <AlertTitle>Notice</AlertTitle>
+            <AlertDescription>
+              Snappit only keeps videos in the cloud for a month. Download this
+              video if you want to keep it permanently.
+            </AlertDescription>
+          </Alert>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-5">
-            <PublicVideoDetail
-              video={video}
-              downloadUrl={downloadSecureUrl}
-            />
+            <PublicVideoDetail video={video} downloadUrl={downloadSecureUrl} />
 
             <div className="rounded-xl overflow-hidden shadow-card bg-foreground/5">
-              {playableVideoKey ? (
-                <VideoPlayer
-                  videoId={video.videoId}
-                  initialSecureUrl={initialSecureUrl}
-                  duration={video.duration ?? 0}
-                />
-              ) : (
-                <div className="flex aspect-video items-center justify-center p-8 text-center text-muted-foreground">
-                  {video.processingStatus === "failed"
-                    ? "Video processing failed."
-                    : "This video is still being processed into a seekable MP4."}
-                </div>
-              )}
+              <VideoPlayer
+                videoId={video.videoId}
+                initialSecureUrl={initialSecureUrl}
+                duration={video.duration ?? 0}
+              />
             </div>
           </div>
           <VideoInfo

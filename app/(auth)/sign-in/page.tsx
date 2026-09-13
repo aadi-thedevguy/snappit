@@ -77,7 +77,7 @@ const SignIn = () => {
                 />
                 <h2>
                   <a
-                    href="https://x.com/Aadi__khare"
+                    href="https://github.com/aadi-thedevguy"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -88,9 +88,6 @@ const SignIn = () => {
             </article>
           </section>
         </div>
-        <p className="text-sm font-medium text-gray-500">
-          © Snappit {new Date().getFullYear()}
-        </p>
       </aside>
       <aside className="flex items-center justify-center lg:w-1/2 w-full lg:h-screen px-10 py-10">
         <Card className="shadow-xl max-w-xl w-full px-5 py-6">

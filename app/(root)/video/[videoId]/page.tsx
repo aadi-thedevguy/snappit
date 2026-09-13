@@ -37,19 +37,11 @@ const page = async ({ params }: Params) => {
             />
 
             <div className="rounded-xl overflow-hidden shadow-card bg-foreground/5">
-              {playableVideoKey ? (
-                <VideoPlayer
-                  videoId={video.videoId}
-                  initialSecureUrl={initialSecureUrl}
-                  duration={video.duration ?? 0}
-                />
-              ) : (
-                <div className="flex aspect-video items-center justify-center p-8 text-center text-muted-foreground">
-                  {video.processingStatus === "failed"
-                    ? "Video processing failed. Please try uploading again."
-                    : "Your video is being processed into a seekable MP4. This usually takes a few minutes."}
-                </div>
-              )}
+              <VideoPlayer
+                videoId={video.videoId}
+                initialSecureUrl={initialSecureUrl}
+                duration={video.duration ?? 0}
+              />
             </div>
           </div>
           <VideoInfo

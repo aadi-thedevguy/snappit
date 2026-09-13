@@ -13,7 +13,8 @@ export const getRawVideoStorageKey = (videoId: string) => `raw/${videoId}.webm`;
 export const getProcessedVideoStorageKey = (videoId: string) =>
   `processed/${videoId}.mp4`;
 
-export const getVideoObjectKey = (storageKey: string) => `videos/${storageKey}`;
+export const getVideoObjectKey = (storageKey: string) =>
+  storageKey.startsWith("videos/") ? storageKey : `videos/${storageKey}`;
 
 export const S3_BUCKET_NAME = process.env.S3_BUCKET_NAME ?? "";
 
@@ -44,7 +45,7 @@ export function createCloudFrontVideoUrl(storageKey: string) {
   const keyPairId = getEnv("CLOUDFRONT_KEY_PAIR_ID");
   const rawKey = getEnv("CLOUDFRONT_PRIVATE_KEY");
   const privateKey = formatPrivateKey(rawKey);
-  const url = CDN.VIDEO_URL(storageKey);
+  const url = CDN.VIDEO_URL(storageKey.replace(/^videos\//, ""));
   const expiry = new Date(Date.now() + 1000 * 60 * 60);
 
   return getCFRSignedUrl({

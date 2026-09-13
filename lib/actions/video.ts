@@ -30,6 +30,12 @@ import {
   s3,
 } from "@/lib/storage/videoStorage";
 
+import {
+  canDownloadVideo,
+  playableVideoKey,
+  type PlaybackRecord,
+} from "@/lib/utils";
+
 const validateWithArcjet = async (fingerPrint: string) => {
   const rateLimit = aj.withRule(
     fixedWindow({
@@ -148,7 +154,8 @@ export const saveVideoDetails = async (videoDetails: VideoDetails) => {
       .values({
         videoId: videoDetails.videoId,
         rawVideoId:
-          videoDetails.rawVideoId ?? getRawVideoStorageKey(videoDetails.videoId),
+          videoDetails.rawVideoId ??
+          getRawVideoStorageKey(videoDetails.videoId),
         rawMimeType: videoDetails.rawMimeType ?? RAW_VIDEO_CONTENT_TYPE,
         processedVideoId: null,
         processedMimeType: null,
@@ -448,26 +455,32 @@ export const updateVideoDetails = async (videoDetails: {
   }
 };
 
-export const deleteVideo = async (videoId: string, thumbnailId: string) => {
+export const deleteVideo = async (videoId: string) => {
   try {
-    // Delete raw video, processed video, and thumbnail from S3.
+    const userId = await getSessionUserId();
+    const [video] = await db
+      .select()
+      .from(videos)
+      .where(and(eq(videos.videoId, videoId), eq(videos.userId, userId)));
+    if (!video) return { error: "Video not found or unauthorized." };
+    const storageKeys = new Set([
+      video.rawVideoId ?? getRawVideoStorageKey(videoId),
+      video.processedVideoId ?? getProcessedVideoStorageKey(videoId),
+      ...(!video.rawVideoId && !video.processedVideoId ? [videoId] : []),
+    ]);
     await Promise.all([
-      s3.send(
-        new DeleteObjectCommand({
-          Bucket: S3_BUCKET_NAME,
-          Key: getVideoObjectKey(getRawVideoStorageKey(videoId)),
-        }),
+      ...[...storageKeys].map((storageKey) =>
+        s3.send(
+          new DeleteObjectCommand({
+            Bucket: S3_BUCKET_NAME,
+            Key: getVideoObjectKey(storageKey),
+          }),
+        ),
       ),
       s3.send(
         new DeleteObjectCommand({
           Bucket: S3_BUCKET_NAME,
-          Key: getVideoObjectKey(getProcessedVideoStorageKey(videoId)),
-        }),
-      ),
-      s3.send(
-        new DeleteObjectCommand({
-          Bucket: S3_BUCKET_NAME,
-          Key: `thumbnails/${thumbnailId}`,
+          Key: `thumbnails/${video.thumbnailId}`,
         }),
       ),
     ]);
@@ -482,35 +495,30 @@ export const deleteVideo = async (videoId: string, thumbnailId: string) => {
   }
 };
 
-export const getPlayableVideoStorageKey = async (video: {
-  videoId: string;
-  rawVideoId?: string | null;
-  processingStatus?: "uploaded" | "processing" | "ready" | "failed" | null;
-  processedVideoId?: string | null;
-}) => {
-  if (video.processingStatus !== "ready") {
-    return null;
-  }
-
-  // Legacy records were stored directly under videos/{videoId} before the
-  // raw/processed split. Keep them playable while new uploads wait for MP4.
-  if (!video.rawVideoId && !video.processedVideoId) {
-    return video.videoId;
-  }
-
-  return video.processedVideoId ?? null;
-};
+export const getPlayableVideoStorageKey = async (video: PlaybackRecord) =>
+  playableVideoKey(video);
 
 export const generateSignedVideoUrl = async (storageKey: string) => {
   return createCloudFrontVideoUrl(storageKey);
 };
 
-export const generateDownloadSignedUrl = async (
-  storageKey: string,
-  title?: string,
-) => {
+export const generateDownloadSignedUrl = async (videoId: string) => {
   try {
-    return await createProcessedVideoDownloadUrl(storageKey, title);
+    const [video] = await db
+      .select()
+      .from(videos)
+      .where(eq(videos.videoId, videoId));
+    if (!video || !canDownloadVideo(video)) throw new Error("MP4 is not ready");
+    if (
+      video.visibility !== "public" &&
+      video.userId !== (await getSessionUserId())
+    ) {
+      throw new Error("Unauthorized");
+    }
+    return await createProcessedVideoDownloadUrl(
+      video.processedVideoId!,
+      video.title,
+    );
   } catch (error) {
     console.error("Error generating S3 download URL:", error);
     throw new Error("Failed to generate download URL");
