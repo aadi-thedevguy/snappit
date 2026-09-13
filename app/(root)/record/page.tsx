@@ -47,14 +47,17 @@ export default function Record() {
     setTimer(`${m}:${s.toString().padStart(2, "0")}`);
   }, []);
 
-  const cleanupPreviewStream = useCallback((mediaStream: MediaStream | null) => {
-    mediaStream?.getTracks().forEach((track) => track.stop());
-    setStream(null);
-    setCountdown(null);
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-  }, []);
+  const cleanupPreviewStream = useCallback(
+    (mediaStream: MediaStream | null) => {
+      mediaStream?.getTracks().forEach((track) => track.stop());
+      setStream(null);
+      setCountdown(null);
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+    },
+    [],
+  );
 
   const startRecording = async () => {
     let displayStream: MediaStream | null = null;
@@ -190,9 +193,9 @@ export default function Record() {
         duration,
       });
       setIsRedirecting(false);
-      toast.success("Recording ready", {
-        description: "Redirecting to upload...",
-      });
+      // toast.success("Recording ready", {
+      //   description: "Redirecting to upload...",
+      // });
       router.push("/upload");
     } catch (err) {
       setIsRedirecting(false);

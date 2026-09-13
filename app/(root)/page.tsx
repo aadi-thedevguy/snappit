@@ -39,6 +39,12 @@ const ProfilePage = async ({ searchParams }: ParamsWithSearch) => {
     views: video.video.views,
     thumbnailId: video.video.thumbnailId,
     videoId: video.video.videoId,
+    rawVideoId: video.video.rawVideoId,
+    rawMimeType: video.video.rawMimeType,
+    processedVideoId: video.video.processedVideoId,
+    processedMimeType: video.video.processedMimeType,
+    processingStatus: video.video.processingStatus,
+    processingError: video.video.processingError,
     publicVideoId: video.video.publicVideoId,
     userId: video.video.userId,
   }));

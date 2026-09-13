@@ -67,8 +67,12 @@ const NativeVideoPlayer: React.FC<NativeVideoPlayerProps> = ({
       }
       const data = await response.json();
       setSecureVideoUrl(data.signedUrl);
-    } catch (err: any) {
-      setFetchError(err.message);
+    } catch (err: unknown) {
+      setFetchError(
+        err instanceof Error
+          ? err.message
+          : "You do not have permission to view this video.",
+      );
     } finally {
       setIsUrlLoading(false);
     }
