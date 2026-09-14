@@ -41,7 +41,7 @@ const VideoCard = ({
         <div>
           <figure>
             <ImageWithFallback
-              src={userImg ?? null}
+              src={userImg}
               width={34}
               height={34}
               alt="avatar"

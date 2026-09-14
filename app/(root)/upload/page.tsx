@@ -162,33 +162,30 @@ const UploadPage = () => {
     if (thumbnailInputRef.current) thumbnailInputRef.current.value = "";
   }, [setSafeThumbnailPreviewUrl]);
 
-  const generateAndSetThumbnail = useCallback(
-    async (videoBlob: Blob) => {
-      try {
-        const thumbnailBlob = await generateThumbnail(videoBlob);
-        if (thumbnailBlob) {
-          const thumbnailFile = new File([thumbnailBlob], "thumbnail.jpg", {
-            type: "image/jpeg",
-            lastModified: Date.now(),
-          });
+  const generateAndSetThumbnail = async (videoBlob: Blob) => {
+    try {
+      const thumbnailBlob = await generateThumbnail(videoBlob);
+      if (thumbnailBlob) {
+        const thumbnailFile = new File([thumbnailBlob], "thumbnail.jpg", {
+          type: "image/jpeg",
+          lastModified: Date.now(),
+        });
 
-          if (thumbnailInputRef.current) {
-            const dataTransfer = new DataTransfer();
-            dataTransfer.items.add(thumbnailFile);
-            thumbnailInputRef.current.files = dataTransfer.files;
-          }
-          handleThumbnailSelect(thumbnailFile);
+        if (thumbnailInputRef.current) {
+          const dataTransfer = new DataTransfer();
+          dataTransfer.items.add(thumbnailFile);
+          thumbnailInputRef.current.files = dataTransfer.files;
         }
-      } catch (err) {
-        console.error("Error generating thumbnail:", err);
-        // thumbnail will be generated at upload time as fallback
+        handleThumbnailSelect(thumbnailFile);
       }
-    },
-    [handleThumbnailSelect],
-  );
+    } catch (err) {
+      console.error("Error generating thumbnail:", err);
+      // thumbnail will be generated at upload time as fallback
+    }
+  };
 
   // Check IndexedDB for a pending recording on mount
-  const getDataFromStorage = useCallback(async () => {
+  const getDataFromStorage = async () => {
     const pending = await getPendingUpload();
     if (pending) {
       const file = new File([pending.blob], "recording.webm", {
@@ -209,15 +206,11 @@ const UploadPage = () => {
       await generateAndSetThumbnail(pending.blob);
       return;
     }
-  }, [form, generateAndSetThumbnail, handleVideoSelect]);
+  };
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      void getDataFromStorage();
-    }, 0);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [getDataFromStorage]);
+    getDataFromStorage();
+  }, []);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
@@ -228,7 +221,7 @@ const UploadPage = () => {
         return;
       }
 
-      const { data, error } = await getVideoUploadUrl(videoFile.type);
+      const { data, error } = await getVideoUploadUrl();
       if (!data || error) {
         form.setError("root", {
           message: error || "Failed to retrieve video upload URL.",
@@ -236,7 +229,7 @@ const UploadPage = () => {
         return;
       }
 
-      const { videoId, rawVideoId, uploadUrl: videoUploadUrl } = data;
+      const { videoId, uploadUrl: videoUploadUrl } = data;
       await uploadFileToStorage(videoFile, videoUploadUrl);
 
       const { data: thumbnailData, error: thumbnailError } =
@@ -254,8 +247,6 @@ const UploadPage = () => {
 
       await saveVideoDetails({
         videoId,
-        rawVideoId,
-        rawMimeType: videoFile.type,
         ...values,
         thumbnailId,
       });

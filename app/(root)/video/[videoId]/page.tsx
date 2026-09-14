@@ -3,11 +3,7 @@ import { notFound } from "next/navigation";
 import VideoDetailHeader from "@/components/VideoDetailHeader";
 import VideoInfo from "@/components/VideoInfo";
 import VideoPlayer from "@/components/VideoPlayer";
-import {
-  generateSignedVideoUrl,
-  getPlayableVideoStorageKey,
-  getVideoById,
-} from "@/lib/actions/video";
+import { getVideoById, generateSignedVideoUrl } from "@/lib/actions/video";
 
 const page = async ({ params }: Params) => {
   const { videoId } = await params;
@@ -16,10 +12,7 @@ const page = async ({ params }: Params) => {
   if (!videoData || error) notFound();
 
   const { user, video } = videoData;
-  const playableVideoKey = await getPlayableVideoStorageKey(video);
-  const initialSecureUrl = playableVideoKey
-    ? await generateSignedVideoUrl(playableVideoKey)
-    : undefined;
+  const initialSecureUrl = await generateSignedVideoUrl(video.videoId);
 
   return (
     <main className="min-h-screen bg-background">

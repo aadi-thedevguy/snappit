@@ -74,15 +74,6 @@ export const videos = createTable("videos", {
   title: text("title").notNull(),
   description: text("description").notNull(),
   videoId: text("video_id").notNull(),
-  rawVideoId: text("raw_video_id"),
-  rawMimeType: text("raw_mime_type"),
-  processedVideoId: text("processed_video_id"),
-  processedMimeType: text("processed_mime_type"),
-  processingStatus: text("processing_status")
-    .$type<"uploaded" | "processing" | "ready" | "failed">()
-    .notNull()
-    .default("ready"),
-  processingError: text("processing_error"),
   thumbnailId: text("thumbnail_id").notNull(),
   visibility: text("visibility").$type<"public" | "private">().notNull(),
   userId: text("user_id")

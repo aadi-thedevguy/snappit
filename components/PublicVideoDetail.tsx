@@ -8,7 +8,7 @@ type Props = {
     createdAt: Date;
     views: number;
   };
-  downloadUrl?: string;
+  downloadUrl: string;
 };
 function PublicVideoDetail({ video, downloadUrl }: Props) {
   return (
@@ -28,7 +28,7 @@ function PublicVideoDetail({ video, downloadUrl }: Props) {
           </span>
         </div>
       </div>
-      {downloadUrl && <PublicVideoDownloadButton downloadUrl={downloadUrl} />}
+      <PublicVideoDownloadButton downloadUrl={downloadUrl} />
     </header>
   );
 }

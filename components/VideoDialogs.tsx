@@ -143,6 +143,7 @@ export function EditDialog({
 
 export function DeleteDialog({
   id,
+  thumbnailId,
   onClose,
 }: {
   id: string;
@@ -153,7 +154,7 @@ export function DeleteDialog({
 
   const removeRecording = async () => {
     setIsDeleting(true);
-    const { error } = await deleteVideo(id);
+    const { error } = await deleteVideo(id, thumbnailId);
     if (error) {
       toast.error(error);
       setIsDeleting(false);

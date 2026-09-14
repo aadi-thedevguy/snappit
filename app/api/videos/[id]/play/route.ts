@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateSignedVideoUrl, getPlayableVideoStorageKey } from '@/lib/actions/video';
+import { generateSignedVideoUrl } from '@/lib/actions/video';
 import { auth } from '@/lib/auth'; 
 import { videos, user } from '@/drizzle/schema';
 import { eq } from 'drizzle-orm';
@@ -58,18 +58,10 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    const playableVideoKey = await getPlayableVideoStorageKey(video);
-    if (!playableVideoKey) {
-      return NextResponse.json(
-        { error: 'Video is still processing.' },
-        { status: 202 },
-      );
-    }
-
-    const signedUrl = await generateSignedVideoUrl(playableVideoKey);
+    const signedUrl = await generateSignedVideoUrl(video.videoId);
     return NextResponse.json({ signedUrl });
 
-  } catch {
+  } catch (error) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

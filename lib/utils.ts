@@ -150,7 +150,7 @@ export const formatPrivateKey = (rawKey: string) => {
   const header = "-----BEGIN RSA PRIVATE KEY-----";
   const footer = "-----END RSA PRIVATE KEY-----";
 
-  const payload = rawKey
+  let payload = rawKey
     .replace(/-----BEGIN (RSA )?PRIVATE KEY-----/g, "")
     .replace(/-----END (RSA )?PRIVATE KEY-----/g, "")
     .replace(/\\n/g, "")
@@ -160,23 +160,3 @@ export const formatPrivateKey = (rawKey: string) => {
   const chunks = payload.match(/.{1,64}/g) || [];
   return `${header}\n${chunks.join("\n")}\n${footer}`;
 };
-
-export type PlaybackRecord = {
-  videoId: string;
-  rawVideoId?: string | null;
-  processedVideoId?: string | null;
-  processingStatus?: string | null;
-};
-
-export function canDownloadVideo(video: PlaybackRecord): boolean {
-  return (
-    video.processingStatus === "ready" &&
-    !!video.processedVideoId?.endsWith(".mp4")
-  );
-}
-
-export function playableVideoKey(video: PlaybackRecord): string {
-  if (canDownloadVideo(video)) return video.processedVideoId!;
-  // Legacy uploads live directly under videos/ until migrated.
-  return video.rawVideoId || video.videoId;
-}

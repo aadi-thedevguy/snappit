@@ -5,36 +5,42 @@ import { videos, user } from "@/drizzle/schema";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { and, desc, eq, sql } from "drizzle-orm";
-import { DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import {
+  PutObjectCommand,
+  DeleteObjectCommand,
+  GetObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { getSignedUrl as getCFRSignedUrl } from "@aws-sdk/cloudfront-signer";
 import { auth } from "@/lib/auth";
 import {
   doesTitleMatch,
+  formatPrivateKey,
   formSchema,
   generatePublicVideoId,
   getOrderByClause,
 } from "@/lib/utils";
+import { CDN } from "@/constants";
 import aj, { fixedWindow, request } from "../arcjet";
+import { getEnv } from "@/lib/utils";
 import z from "zod";
 import { updateFormSchema } from "@/lib/utils";
-import { inngest } from "@/lib/inngest/client";
-import {
-  createCloudFrontVideoUrl,
-  createProcessedVideoDownloadUrl,
-  createRawVideoUploadUrl,
-  getProcessedVideoStorageKey,
-  getRawVideoStorageKey,
-  getVideoObjectKey,
-  RAW_VIDEO_CONTENT_TYPE,
-  S3_BUCKET_NAME,
-  s3,
-} from "@/lib/storage/videoStorage";
 
-import {
-  canDownloadVideo,
-  playableVideoKey,
-  type PlaybackRecord,
-} from "@/lib/utils";
+// AWS Configuration
+const AWS_ACCESS_KEY_ID = getEnv("AWS_ACCESS_KEY_ID");
+const AWS_SECRET_ACCESS_KEY = getEnv("AWS_SECRET_ACCESS_KEY");
+const AWS_REGION = getEnv("AWS_REGION");
+const S3_BUCKET_NAME = getEnv("S3_BUCKET_NAME");
+
+const s3 = new S3Client({
+  // credentials: fromEnv(),
+  credentials: {
+    accessKeyId: AWS_ACCESS_KEY_ID,
+    secretAccessKey: AWS_SECRET_ACCESS_KEY,
+  },
+  region: AWS_REGION,
+});
 
 const validateWithArcjet = async (fingerPrint: string) => {
   const rateLimit = aj.withRule(
@@ -73,21 +79,28 @@ const buildVideoWithUserQuery = () =>
     .leftJoin(user, eq(videos.userId, user.id));
 
 // Server Actions
-export const getVideoUploadUrl = async (
-  contentType: string = RAW_VIDEO_CONTENT_TYPE,
-) => {
+export const getVideoUploadUrl = async () => {
   try {
     await getSessionUserId();
 
     const timestamp = Date.now();
     const videoId = `video-${timestamp}`;
 
-    const uploadUrl = await createRawVideoUploadUrl(videoId, contentType);
+    const uploadUrl = await getSignedUrl(
+      s3,
+      new PutObjectCommand({
+        Bucket: S3_BUCKET_NAME,
+        Key: `videos/${videoId}`,
+        ContentType: "video/webm",
+      }),
+      {
+        expiresIn: 3600,
+      },
+    );
 
     return {
       data: {
         videoId,
-        rawVideoId: getRawVideoStorageKey(videoId),
         uploadUrl,
       },
     };
@@ -153,14 +166,6 @@ export const saveVideoDetails = async (videoDetails: VideoDetails) => {
       .insert(videos)
       .values({
         videoId: videoDetails.videoId,
-        rawVideoId:
-          videoDetails.rawVideoId ??
-          getRawVideoStorageKey(videoDetails.videoId),
-        rawMimeType: videoDetails.rawMimeType ?? RAW_VIDEO_CONTENT_TYPE,
-        processedVideoId: null,
-        processedMimeType: null,
-        processingStatus: "uploaded",
-        processingError: null,
         thumbnailId: videoDetails.thumbnailId,
         title: videoDetails.title,
         description: videoDetails.description,
@@ -172,13 +177,6 @@ export const saveVideoDetails = async (videoDetails: VideoDetails) => {
         updatedAt: now,
       })
       .returning();
-
-    await inngest.send({
-      id: `${videoDetails.videoId}-uploaded`,
-      name: "video/uploaded",
-      data: { videoId: videoDetails.videoId },
-    });
-
     revalidatePaths(["/"]);
     return { data: null };
   } catch (error) {
@@ -220,11 +218,6 @@ export const getVideoByPublicVideoId = async (publicVideoId: string) => {
         description: videos.description,
         views: videos.views,
         duration: videos.duration,
-        rawVideoId: videos.rawVideoId,
-        processedVideoId: videos.processedVideoId,
-        processedMimeType: videos.processedMimeType,
-        processingStatus: videos.processingStatus,
-        processingError: videos.processingError,
         createdAt: videos.createdAt,
         updatedAt: videos.updatedAt,
       })
@@ -455,32 +448,20 @@ export const updateVideoDetails = async (videoDetails: {
   }
 };
 
-export const deleteVideo = async (videoId: string) => {
+export const deleteVideo = async (videoId: string, thumbnailId: string) => {
   try {
-    const userId = await getSessionUserId();
-    const [video] = await db
-      .select()
-      .from(videos)
-      .where(and(eq(videos.videoId, videoId), eq(videos.userId, userId)));
-    if (!video) return { error: "Video not found or unauthorized." };
-    const storageKeys = new Set([
-      video.rawVideoId ?? getRawVideoStorageKey(videoId),
-      video.processedVideoId ?? getProcessedVideoStorageKey(videoId),
-      ...(!video.rawVideoId && !video.processedVideoId ? [videoId] : []),
-    ]);
+    // Delete video and thumbnail from S3
     await Promise.all([
-      ...[...storageKeys].map((storageKey) =>
-        s3.send(
-          new DeleteObjectCommand({
-            Bucket: S3_BUCKET_NAME,
-            Key: getVideoObjectKey(storageKey),
-          }),
-        ),
+      s3.send(
+        new DeleteObjectCommand({
+          Bucket: S3_BUCKET_NAME,
+          Key: `videos/${videoId}`,
+        }),
       ),
       s3.send(
         new DeleteObjectCommand({
           Bucket: S3_BUCKET_NAME,
-          Key: `thumbnails/${video.thumbnailId}`,
+          Key: `thumbnails/${thumbnailId}`,
         }),
       ),
     ]);
@@ -495,30 +476,41 @@ export const deleteVideo = async (videoId: string) => {
   }
 };
 
-export const getPlayableVideoStorageKey = async (video: PlaybackRecord) =>
-  playableVideoKey(video);
+export const generateSignedVideoUrl = async (s3ObjectKey: string) => {
+  const keyPairId = getEnv("CLOUDFRONT_KEY_PAIR_ID");
+  const rawKey = getEnv("CLOUDFRONT_PRIVATE_KEY");
+  const privateKey = formatPrivateKey(rawKey);
+  const url = CDN.VIDEO_URL(s3ObjectKey);
+  // 1 hour expiry window
+  const expiry = new Date(Date.now() + 1000 * 60 * 60);
 
-export const generateSignedVideoUrl = async (storageKey: string) => {
-  return createCloudFrontVideoUrl(storageKey);
+  return getCFRSignedUrl({
+    url,
+    keyPairId,
+    privateKey,
+    dateLessThan: expiry.toISOString(),
+  });
 };
 
-export const generateDownloadSignedUrl = async (videoId: string) => {
+export const generateDownloadSignedUrl = async (
+  s3ObjectKey: string,
+  title?: string,
+) => {
   try {
-    const [video] = await db
-      .select()
-      .from(videos)
-      .where(eq(videos.videoId, videoId));
-    if (!video || !canDownloadVideo(video)) throw new Error("MP4 is not ready");
-    if (
-      video.visibility !== "public" &&
-      video.userId !== (await getSessionUserId())
-    ) {
-      throw new Error("Unauthorized");
-    }
-    return await createProcessedVideoDownloadUrl(
-      video.processedVideoId!,
-      video.title,
-    );
+    const filename = title
+      ? encodeURIComponent(`${title}.webm`)
+      : "snappit-video.webm";
+
+    const command = new GetObjectCommand({
+      Bucket: S3_BUCKET_NAME,
+      Key: `videos/${s3ObjectKey}`,
+      ResponseContentDisposition: `attachment; filename="${filename}"`,
+      ResponseContentType: "video/webm",
+    });
+
+    // 1 hour expiry
+    const signedUrl = await getSignedUrl(s3, command, { expiresIn: 3600 });
+    return signedUrl;
   } catch (error) {
     console.error("Error generating S3 download URL:", error);
     throw new Error("Failed to generate download URL");

@@ -1,15 +1,3 @@
-declare interface VideoCardProps {
-  id: string;
-  title: string;
-  thumbnail: string;
-  userImg?: string | null;
-  username?: string;
-  createdAt: Date;
-  views: number;
-  visibility: Visibility;
-  duration?: number | null;
-}
-
 declare interface VideoDetailHeaderProps {
   title: string;
   userImg: string | null | undefined;
@@ -37,12 +25,6 @@ declare interface ImageWithFallbackProps extends Omit<ImageProps, "src"> {
 
 declare interface VideoDetails {
   videoId: string;
-  rawVideoId?: string | null;
-  rawMimeType?: string | null;
-  processedVideoId?: string | null;
-  processedMimeType?: string | null;
-  processingStatus?: "uploaded" | "processing" | "ready" | "failed";
-  processingError?: string | null;
   title: string;
   description: string;
   thumbnailId: string;
