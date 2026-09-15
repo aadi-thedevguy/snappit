@@ -1,6 +1,6 @@
 # 🎥 Snappit
 
-<img style="margin-inline: auto;" src="public/assets/images/thumbnail.png" alt="thumbnail image" width="100%" height="100%" />
+<img style="margin-inline: auto;" src="apps/web/public/assets/images/thumbnail.png" alt="thumbnail image" width="100%" height="100%" />
 
 Snappit is a powerful, full-stack screen recording and video hosting platform. It features a modern Next.js web application and a companion Chrome Extension (Manifest V3) that allows users to record their screen, tab, or window seamlessly from anywhere on the web. 
 
@@ -47,10 +47,18 @@ Recorded videos are safely buffered using IndexedDB and ArrayBuffers to handle m
 
 ---
 
+## Monorepo and video processing
+
+The Next.js app sends events from Vercel. It does not run Inngest Connect. The video worker runs as a long-lived Docker container on the VPS and establishes the outbound Inngest Connect connection.
+
+The web app lives in `apps/web`, the worker in `apps/video-worker`, and shared database, event, validation and storage code in `packages`. The Chrome extension remains in `extension`.
+
+Read [video worker operations](docs/video-worker.md) for local development, the additive database prerequisite, Vercel root settings, VPS deployment, environment variables, cutover and rollback. Production migrations should follow your established Drizzle history; use `db:push` below only for a fresh development database.
+
 ## 🚀 Getting Started
 
 ### Prerequisites
-- **Node.js** (v22 or higher)
+- **Node.js** (v22.4 or higher), **pnpm 10.28.0**
 - **PostgreSQL** database (local or hosted, e.g., Supabase/Neon)
 
 
@@ -64,16 +72,13 @@ cd snappit
 ### 2. Install Dependencies
 
 ```bash
-npm install
-# or
-yarn install
-# or
-pnpm install
+corepack enable
+pnpm install --frozen-lockfile
 ```
 
 ### 3. Environment Variables
 
-Rename `.env.example` to `.env` (or `.env.local`) in the root directory and add the required variables.
+Copy `apps/web/.env.example` to `apps/web/.env` and add the required variables.
 *Follow these docs for AWS cloudfront and s3 setup*
 [https://github.com/aws-samples/amazon-cloudfront-signed-urls-using-lambda-secretsmanager/tree/main/1-Create_S3_Bucket](https://github.com/aws-samples/amazon-cloudfront-signed-urls-using-lambda-secretsmanager/tree/main/1-Create_S3_Bucket)
 
@@ -84,14 +89,14 @@ Rename `.env.example` to `.env` (or `.env.local`) in the root directory and add 
 Push the Drizzle schema to your PostgreSQL database:
 
 ```bash
-npm run db:push
+pnpm db:push
 # or your configured drizzle-kit command
 ```
 
 ### 5. Run the Web Application
 
 ```bash
-npm run dev
+pnpm dev:web
 ```
 The app should now be running on http://localhost:3000.
 

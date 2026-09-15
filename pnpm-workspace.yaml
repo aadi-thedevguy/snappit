@@ -1,10 +1,13 @@
-allowBuilds:
-  esbuild: false
-  ffmpeg-static: true
-  msw: false
-  protobufjs: false
-  sharp: false
-  unrs-resolver: false
+packages:
+  - apps/*
+  - packages/*
+injectWorkspacePackages: true
+syncInjectedDepsAfterScripts:
+  - build
+resolvePeersFromWorkspaceRoot: false
+dedupePeerDependents: false
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
+onlyBuiltDependencies:
+  - esbuild

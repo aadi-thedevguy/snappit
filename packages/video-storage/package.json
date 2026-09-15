@@ -1,0 +1,29 @@
+{
+  "name": "@snappit/video-storage",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "browser": "./dist/browser.js",
+      "default": "./dist/index.js"
+    },
+    "./keys": {
+      "types": "./dist/keys.d.ts",
+      "default": "./dist/keys.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1009.0"
+  }
+}
