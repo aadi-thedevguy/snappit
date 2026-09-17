@@ -7,8 +7,6 @@ export function createTranscodeVideoToMp4(inngest: ReturnType<typeof createInnge
     id: "transcode-video-to-mp4",
     name: "Transcode video to MP4",
     triggers: [videoUploaded],
-    idempotency: "event.data.videoId",
-    singleton: { key: "event.data.videoId", mode: "skip" },
     concurrency: { limit: 2 },
     retries: 2,
     onFailure: handlers.failure,
