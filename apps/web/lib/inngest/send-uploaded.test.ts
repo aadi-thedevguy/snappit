@@ -3,19 +3,32 @@ import assert from "node:assert/strict";
 import { sendVideoUploaded } from "./send-uploaded";
 import { readFile } from "node:fs/promises";
 
-test("web sender preserves event name, durable ID and deduplication key", async () => {
+const videoId = "a0000000-0000-4000-8000-000000000001";
+test("web sender preserves UUID event data and deduplication key", async () => {
   let sent;
-  await sendVideoUploaded("video-123", async event => { sent = JSON.parse(JSON.stringify(event)); });
-  assert.deepEqual(sent, { name: "video/uploaded", data: { videoId: "video-123" }, id: "video-123-uploaded" });
+  await sendVideoUploaded(videoId, async (event) => {
+    sent = JSON.parse(JSON.stringify(event));
+  });
+  assert.deepEqual(sent, {
+    name: "video/uploaded",
+    data: { videoId },
+    id: `${videoId}-uploaded`,
+  });
 });
 test("invalid events are rejected before sending", async () => {
   let calls = 0;
-  await assert.rejects(sendVideoUploaded("../secret", async () => { calls++; }));
+  await assert.rejects(
+    sendVideoUploaded("../secret", async () => {
+      calls++;
+    }),
+  );
   assert.equal(calls, 0);
 });
-test("upload action verifies S3, then inserts DB record, then sends event", async () => {
+test("upload finalization verifies S3, updates the owned row, then sends event", async () => {
   const source = await readFile(new URL("../actions/video.ts", import.meta.url), "utf8");
-  const action = source.slice(source.indexOf("export const saveVideoDetails"));
-  assert.ok(action.indexOf("new HeadObjectCommand") < action.indexOf(".insert(videos)"));
-  assert.ok(action.indexOf(".returning()") < action.indexOf("await sendVideoUploaded"));
+  const action = source.slice(source.indexOf("export const finalizeRecordingUpload"));
+  assert.ok(action.indexOf("new HeadObjectCommand") < action.indexOf("tx.update(videos)"));
+  assert.ok(
+    action.indexOf(".returning({ id: videos.id })") < action.indexOf("await sendVideoUploaded"),
+  );
 });

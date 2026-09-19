@@ -22,16 +22,13 @@ const VIDEO_ONLY_MIME_CANDIDATES = [
 ] as const;
 
 const defaultIsTypeSupported: IsTypeSupported = (mimeType) =>
-  typeof MediaRecorder !== "undefined" &&
-  MediaRecorder.isTypeSupported(mimeType);
+  typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(mimeType);
 
 export function pickRecordingMimeType(
   hasAudio: boolean,
   isTypeSupported: IsTypeSupported = defaultIsTypeSupported,
 ): string {
-  const candidates = hasAudio
-    ? AUDIO_MIME_CANDIDATES
-    : VIDEO_ONLY_MIME_CANDIDATES;
+  const candidates = hasAudio ? AUDIO_MIME_CANDIDATES : VIDEO_ONLY_MIME_CANDIDATES;
   return candidates.find((type) => isTypeSupported(type)) ?? "";
 }
 

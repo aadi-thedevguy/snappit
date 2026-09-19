@@ -3,8 +3,7 @@ import VideoPlayer from "@/components/VideoPlayer";
 import VideoInfo from "@/components/VideoInfo";
 import {
   generateDownloadSignedUrl,
-  generateSignedVideoUrl,
-  getPlayableVideoStorageKey,
+  generatePlaybackUrl,
   getVideoByPublicVideoId,
 } from "@/lib/actions/video";
 import PublicVideoDetail from "@/components/PublicVideoDetail";
@@ -18,17 +17,14 @@ export const revalidate = 60; // Cache this page for 60 seconds
 const page = async ({ params }: Params) => {
   const { publicVideoId } = await params;
 
-  const { data: videoData, error } =
-    await getVideoByPublicVideoId(publicVideoId);
+  const { data: videoData, error } = await getVideoByPublicVideoId(publicVideoId);
   if (!videoData || error) notFound();
 
   const { video } = videoData;
   if (!video) notFound();
 
-  const playableVideoKey = await getPlayableVideoStorageKey(video);
-  const initialSecureUrl = playableVideoKey
-    ? await generateSignedVideoUrl(playableVideoKey)
-    : undefined;
+  const initialSecureUrl =
+    video.processingStatus !== "uploading" ? await generatePlaybackUrl(video.videoId) : undefined;
   const downloadSecureUrl = canDownloadVideo(video)
     ? await generateDownloadSignedUrl(video.videoId)
     : undefined;
@@ -41,8 +37,8 @@ const page = async ({ params }: Params) => {
             <AlertTriangle className="h-4 w-4 stroke-amber-500" />
             <AlertTitle>Notice</AlertTitle>
             <AlertDescription>
-              Snappit only keeps videos in the cloud for a month. Download this
-              video if you want to keep it permanently.
+              Snappit only keeps videos in the cloud for a month. Download this video if you want to
+              keep it permanently.
             </AlertDescription>
           </Alert>
         )}
@@ -54,7 +50,7 @@ const page = async ({ params }: Params) => {
             <div className="rounded-xl overflow-hidden shadow-card bg-foreground/5">
               <VideoPlayer
                 videoId={video.videoId}
-                initialSecureUrl={initialSecureUrl}
+                initialSecureUrl={initialSecureUrl ?? undefined}
                 duration={video.duration ?? 0}
               />
             </div>

@@ -25,40 +25,47 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { videos } from "@/drizzle/schema";
 import { formatDuration } from "@/lib/utils";
 import { useState } from "react";
 import { EditDialog, ShareDialog, DeleteDialog } from "./VideoDialogs";
-import { CDN } from "@/constants";
 import { generateDownloadSignedUrl } from "@/lib/actions/video";
 
 import { canDownloadVideo } from "@/lib/utils";
 
-type VideoType = Omit<typeof videos.$inferSelect, "processingRunId">;
+type VideoType = {
+  id: string;
+  title: string;
+  description: string;
+  visibility: "public" | "private";
+  views: number;
+  duration: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+  processingStatus: "uploading" | "uploaded" | "processing" | "ready" | "failed";
+  processingError: string | null;
+  processedMimeType: string | null;
+  publicVideoId: string;
+  userId: string;
+  thumbnailUrl: string | null;
+};
 
 const VideoGrid = ({ videos }: { videos: VideoType[] }) => {
   const [editRecording, setEditRecording] = useState<VideoType | null>(null);
   const [deleteRecording, setDeleteRecording] = useState({
     id: "",
-    thumbnailId: "",
   });
   const [shareRecording, setShareRecording] = useState<VideoType | null>(null);
 
   return (
     <div className="space-y-6">
-      {videos.some(canDownloadVideo) && (
-        <Alert
-          variant="default"
-          className="bg-amber-500/10 text-amber-500 border-amber-500/20"
-        >
-          <AlertTriangle className="h-4 w-4 stroke-amber-500" />
-          <AlertTitle>Notice</AlertTitle>
-          <AlertDescription>
-            Snappit only keeps your videos in the cloud for a month. If you want
-            it to be permanent, kindly download the video.
-          </AlertDescription>
-        </Alert>
-      )}
+      <Alert variant="default" className="bg-amber-500/10 text-amber-500 border-amber-500/20">
+        <AlertTriangle className="h-4 w-4 stroke-amber-500" />
+        <AlertTitle>Notice</AlertTitle>
+        <AlertDescription>
+          Snappit only keeps your videos in the cloud for a month. If you want it to be permanent,
+          kindly download the video.
+        </AlertDescription>
+      </Alert>
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {videos?.map((video) => (
           <VideoCard
@@ -67,18 +74,14 @@ const VideoGrid = ({ videos }: { videos: VideoType[] }) => {
             onEdit={() => setEditRecording(video)}
             onDelete={() =>
               setDeleteRecording({
-                id: video?.videoId,
-                thumbnailId: video?.thumbnailId,
+                id: video.id,
               })
             }
             onShare={() => setShareRecording(video)}
           />
         ))}
         {editRecording && (
-          <EditDialog
-            recording={editRecording}
-            onClose={() => setEditRecording(null)}
-          />
+          <EditDialog recording={editRecording} onClose={() => setEditRecording(null)} />
         )}
         {deleteRecording.id && (
           <DeleteDialog
@@ -86,16 +89,12 @@ const VideoGrid = ({ videos }: { videos: VideoType[] }) => {
             onClose={() =>
               setDeleteRecording({
                 id: "",
-                thumbnailId: "",
               })
             }
           />
         )}
         {shareRecording && (
-          <ShareDialog
-            recording={shareRecording}
-            onClose={() => setShareRecording(null)}
-          />
+          <ShareDialog recording={shareRecording} onClose={() => setShareRecording(null)} />
         )}
       </section>
     </div>
@@ -123,11 +122,10 @@ function VideoCard({
         return;
       }
 
-      const signedUrl = await generateDownloadSignedUrl(recording.videoId);
+      const signedUrl = await generateDownloadSignedUrl(recording.id);
 
       const a = document.createElement("a");
       a.href = signedUrl;
-      a.download = `${recording.title}.mp4`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -138,14 +136,15 @@ function VideoCard({
 
   return (
     <Card className="group shadow-card hover:shadow-elegant transition-all duration-300 overflow-hidden border-border">
-      <Link href={`/video/${recording.videoId}`}>
+      <Link href={`/video/${recording.id}`}>
         <div className="aspect-video bg-muted relative overflow-hidden">
-          {recording.thumbnailId ? (
+          {recording.thumbnailUrl ? (
             <Image
-              src={CDN.THUMBNAIL_URL(recording.thumbnailId)}
+              src={recording.thumbnailUrl}
               alt={recording.title}
               width={300}
               height={200}
+              unoptimized
               className="w-full h-full object-cover"
             />
           ) : (
@@ -163,9 +162,7 @@ function VideoCard({
           {/* Visibility badge */}
           <div className="absolute top-2 left-2">
             <Badge
-              variant={
-                recording.visibility === "public" ? "default" : "secondary"
-              }
+              variant={recording.visibility === "public" ? "default" : "secondary"}
               className="text-xs gap-1 capitalize"
             >
               {recording.visibility === "public" ? (
@@ -182,9 +179,7 @@ function VideoCard({
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <h3 className="font-medium text-foreground truncate">
-              {recording.title}
-            </h3>
+            <h3 className="font-medium text-foreground truncate">{recording.title}</h3>
             <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
               <Eye className="h-3 w-3" />
               {recording.views}
@@ -205,11 +200,8 @@ function VideoCard({
                 <LinkIcon className="mr-2 h-4 w-4" /> Share
               </DropdownMenuItem>
               {canDownloadVideo(recording) && (
-                <DropdownMenuItem
-                  onClick={handleDownload}
-                  className="text-gray-100"
-                >
-                  <Download className="mr-2 h-4 w-4" /> Download MP4
+                <DropdownMenuItem onClick={handleDownload} className="text-gray-100">
+                  <Download className="mr-2 h-4 w-4" /> Download video
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem onClick={onEdit} className="text-sky-100">

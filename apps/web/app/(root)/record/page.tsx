@@ -4,16 +4,7 @@ import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import {
-  Monitor,
-  Square,
-  Pause,
-  Play,
-  Download,
-  Save,
-  Circle,
-  AlertCircleIcon,
-} from "lucide-react";
+import { Monitor, Square, Pause, Play, Save, Circle, AlertCircleIcon } from "lucide-react";
 import { toast } from "sonner";
 import { DEFAULT_VIDEO_CONFIG } from "@/constants";
 import { buildMediaRecorderOptions } from "@/lib/recordingOptions";
@@ -47,17 +38,14 @@ export default function Record() {
     setTimer(`${m}:${s.toString().padStart(2, "0")}`);
   }, []);
 
-  const cleanupPreviewStream = useCallback(
-    (mediaStream: MediaStream | null) => {
-      mediaStream?.getTracks().forEach((track) => track.stop());
-      setStream(null);
-      setCountdown(null);
-      if (videoRef.current) {
-        videoRef.current.srcObject = null;
-      }
-    },
-    [],
-  );
+  const cleanupPreviewStream = useCallback((mediaStream: MediaStream | null) => {
+    mediaStream?.getTracks().forEach((track) => track.stop());
+    setStream(null);
+    setCountdown(null);
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, []);
 
   const startRecording = async () => {
     let displayStream: MediaStream | null = null;
@@ -79,10 +67,7 @@ export default function Record() {
       const videoTrack = displayStream.getVideoTracks()[0];
       if (videoTrack) {
         videoTrack.onended = () => {
-          if (
-            mediaRecorderRef.current &&
-            mediaRecorderRef.current.state !== "inactive"
-          ) {
+          if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
             mediaRecorderRef.current.stop();
           } else {
             cleanupPreviewStream(displayStream);
@@ -163,16 +148,6 @@ export default function Record() {
     stream?.getTracks().forEach((t) => t.stop());
   };
 
-  const downloadRecording = () => {
-    if (!recordedBlob) return;
-    const url = URL.createObjectURL(recordedBlob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "recording.webm";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   const resetRecording = () => {
     setRecordedBlob(null);
     setState("idle");
@@ -211,21 +186,17 @@ export default function Record() {
     <div className="container max-w-4xl py-8 px-6 mx-auto">
       {countdown !== null && (
         <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/80">
-          <div className="text-white text-[10rem] font-bold animate-pulse">
-            {countdown}
-          </div>
+          <div className="text-white text-[10rem] font-bold animate-pulse">{countdown}</div>
         </div>
       )}
-      <h1 className="text-3xl font-display font-bold text-foreground mb-8">
-        Screen Recorder
-      </h1>
+      <h1 className="text-3xl font-display font-bold text-foreground mb-8">Screen Recorder</h1>
       <section className="lg:hidden">
         <Alert className="my-4">
           <AlertCircleIcon className="h-4 w-4" />
           <AlertTitle>Desktop Required</AlertTitle>
           <AlertDescription>
-            Screen recording is optimized for desktop devices. Please switch to
-            a computer to use this feature.
+            Screen recording is optimized for desktop devices. Please switch to a computer to use
+            this feature.
           </AlertDescription>
         </Alert>
       </section>
@@ -280,21 +251,11 @@ export default function Record() {
           )}
           {state === "recording" && (
             <>
-              <Button
-                onClick={pauseRecording}
-                variant="outline"
-                size="lg"
-                className="gap-2"
-              >
+              <Button onClick={pauseRecording} variant="outline" size="lg" className="gap-2">
                 <Pause className="h-5 w-5" />
                 Pause
               </Button>
-              <Button
-                onClick={stopRecording}
-                variant="destructive"
-                size="lg"
-                className="gap-2"
-              >
+              <Button onClick={stopRecording} variant="destructive" size="lg" className="gap-2">
                 <Square className="h-5 w-5" />
                 Stop
               </Button>
@@ -310,12 +271,7 @@ export default function Record() {
                 <Play className="h-5 w-5" />
                 Resume
               </Button>
-              <Button
-                onClick={stopRecording}
-                variant="destructive"
-                size="lg"
-                className="gap-2"
-              >
+              <Button onClick={stopRecording} variant="destructive" size="lg" className="gap-2">
                 <Square className="h-5 w-5" />
                 Stop
               </Button>
@@ -331,15 +287,6 @@ export default function Record() {
               >
                 <Circle className="h-5 w-5" />
                 New Recording
-              </Button>
-              <Button
-                onClick={downloadRecording}
-                variant="outline"
-                size="lg"
-                className="px-4 py-6 rounded-full cursor-pointer gap-2 shadow-elegant"
-              >
-                <Download className="h-5 w-5" />
-                Download
               </Button>
             </>
           )}
@@ -357,6 +304,11 @@ export default function Record() {
             </>
           )}
         </div>
+        {state === "stopped" && (
+          <p className="mb-6 text-center text-sm text-muted-foreground">
+            Save and process your recording to download a seekable MP4.
+          </p>
+        )}
       </section>
     </div>
   );

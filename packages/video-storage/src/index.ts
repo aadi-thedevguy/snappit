@@ -10,9 +10,10 @@ export function createVideoStorage(config: {
   const client = new S3Client({
     region: config.region,
     endpoint: config.endpoint,
-    credentials: config.accessKeyId && config.secretAccessKey
-      ? { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey }
-      : undefined,
+    credentials:
+      config.accessKeyId && config.secretAccessKey
+        ? { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey }
+        : undefined,
   });
   return { client, bucket: config.bucket, close: () => client.destroy() };
 }

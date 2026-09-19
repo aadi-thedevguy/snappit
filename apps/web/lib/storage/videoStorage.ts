@@ -1,4 +1,4 @@
-import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { getSignedUrl as getCFRSignedUrl } from "@aws-sdk/cloudfront-signer";
 import { CDN } from "@/constants";
@@ -6,7 +6,7 @@ import { formatPrivateKey, getEnv } from "@/lib/utils";
 
 import "server-only";
 import { createVideoStorage } from "@snappit/video-storage";
-import { getRawVideoStorageKey, getVideoObjectKey, RAW_VIDEO_CONTENT_TYPE, PROCESSED_VIDEO_CONTENT_TYPE } from "@snappit/video-storage/keys";
+import { getVideoObjectKey } from "@snappit/video-storage/keys";
 export * from "@snappit/video-storage/keys";
 
 export const S3_BUCKET_NAME = process.env.S3_BUCKET_NAME ?? "";
@@ -18,27 +18,12 @@ export const { client: s3 } = createVideoStorage({
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
 });
 
-export async function createRawVideoUploadUrl(
-  videoId: string,
-  contentType: string = RAW_VIDEO_CONTENT_TYPE,
-) {
-  return getSignedUrl(
-    s3,
-    new PutObjectCommand({
-      Bucket: S3_BUCKET_NAME,
-      Key: getVideoObjectKey(getRawVideoStorageKey(videoId)),
-      ContentType: contentType,
-    }),
-    { expiresIn: 3600 },
-  );
-}
-
 export function createCloudFrontVideoUrl(storageKey: string) {
   const keyPairId = getEnv("CLOUDFRONT_KEY_PAIR_ID");
   const rawKey = getEnv("CLOUDFRONT_PRIVATE_KEY");
   const privateKey = formatPrivateKey(rawKey);
-  const url = CDN.VIDEO_URL(storageKey.replace(/^videos\//, ""));
-  const expiry = new Date(Date.now() + 1000 * 60 * 60);
+  const url = CDN.VIDEO_URL(storageKey);
+  const expiry = new Date(Date.now() + 1000 * 60 * 10);
 
   return getCFRSignedUrl({
     url,
@@ -48,13 +33,15 @@ export function createCloudFrontVideoUrl(storageKey: string) {
   });
 }
 
-export async function createProcessedVideoDownloadUrl(
+export async function createVideoDownloadUrl(
   storageKey: string,
+  contentType: "video/mp4" | "video/webm",
   title?: string,
 ) {
+  const extension = contentType === "video/mp4" ? "mp4" : "webm";
   const filename = title
-    ? encodeURIComponent(`${title}.mp4`)
-    : "snappit-video.mp4";
+    ? encodeURIComponent(`${title}.${extension}`)
+    : `snappit-video.${extension}`;
 
   return getSignedUrl(
     s3,
@@ -62,8 +49,8 @@ export async function createProcessedVideoDownloadUrl(
       Bucket: S3_BUCKET_NAME,
       Key: getVideoObjectKey(storageKey),
       ResponseContentDisposition: `attachment; filename="${filename}"`,
-      ResponseContentType: PROCESSED_VIDEO_CONTENT_TYPE,
+      ResponseContentType: contentType,
     }),
-    { expiresIn: 3600 },
+    { expiresIn: 600 },
   );
 }

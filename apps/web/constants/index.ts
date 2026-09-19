@@ -12,14 +12,11 @@ export const MANIFEST_URL = `${SITE_URL}/assets/manifest.json`;
 export { MAX_VIDEO_SIZE } from "@snappit/validation";
 export const MAX_THUMBNAIL_SIZE = 10 * 1024 * 1024; //10mb
 
-export const DEFAULT_AVATAR_URL =
-  "https://api.dicebear.com/9.x/avataaars-neutral/svg";
+export const DEFAULT_AVATAR_URL = "https://api.dicebear.com/9.x/avataaars-neutral/svg";
 
 export const CDN = {
-  VIDEO_URL: (videoId: string) =>
-    `https://d28vypb2sw9vap.cloudfront.net/videos/${videoId}`,
-  THUMBNAIL_URL: (thumbnailId: string) =>
-    `https://d28vypb2sw9vap.cloudfront.net/thumbnails/${thumbnailId}`,
+  VIDEO_URL: (storageKey: string) =>
+    `https://d28vypb2sw9vap.cloudfront.net/${storageKey.split("/").map(encodeURIComponent).join("/")}`,
 };
 
 // Display-capture constraints (no camera-only keys like facingMode)

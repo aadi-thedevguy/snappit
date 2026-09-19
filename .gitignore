@@ -20,6 +20,10 @@
 # production
 /build
 /drizzle/migrations
+!/drizzle/migrations/
+!/drizzle/migrations/*.sql
+!/drizzle/migrations/meta/
+!/drizzle/migrations/meta/*.json
 
 # misc
 .DS_Store

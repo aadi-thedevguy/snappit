@@ -13,7 +13,6 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { videos } from "@/drizzle/schema";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,18 +28,19 @@ import { Copy } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import z from "zod";
-import {
-  deleteVideo,
-  updateVideoDetails,
-  updateVideoVisibility,
-} from "@/lib/actions/video";
+import { deleteVideo, updateVideoDetails, updateVideoVisibility } from "@/lib/actions/video";
 import { updateFormSchema } from "@/lib/utils";
 
 export function EditDialog({
   recording,
   onClose,
 }: {
-  recording: Omit<typeof videos.$inferSelect, "processingRunId">;
+  recording: {
+    id: string;
+    title: string;
+    description: string;
+    visibility: "public" | "private";
+  };
   onClose: () => void;
 }) {
   const form = useForm<z.infer<typeof updateFormSchema>>({
@@ -49,7 +49,7 @@ export function EditDialog({
       title: recording.title,
       description: recording.description,
       visibility: recording.visibility,
-      videoId: recording.videoId,
+      videoId: recording.id,
     },
   });
 
@@ -81,9 +81,7 @@ export function EditDialog({
               {...form.register("title")}
             />
             {form.formState.errors.title && (
-              <p className="text-sm text-red-500 mt-2">
-                {form.formState.errors.title.message}
-              </p>
+              <p className="text-sm text-red-500 mt-2">{form.formState.errors.title.message}</p>
             )}
           </div>
 
@@ -115,9 +113,7 @@ export function EditDialog({
               render={({ field }) => (
                 <Switch
                   checked={field.value === "public"}
-                  onCheckedChange={(checked) =>
-                    field.onChange(checked ? "public" : "private")
-                  }
+                  onCheckedChange={(checked) => field.onChange(checked ? "public" : "private")}
                   className="data-checked:bg-sky-100 cursor-pointer"
                 />
               )}
@@ -141,14 +137,7 @@ export function EditDialog({
   );
 }
 
-export function DeleteDialog({
-  id,
-  onClose,
-}: {
-  id: string;
-  thumbnailId: string;
-  onClose: () => void;
-}) {
+export function DeleteDialog({ id, onClose }: { id: string; onClose: () => void }) {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const removeRecording = async () => {
@@ -168,22 +157,14 @@ export function DeleteDialog({
     <AlertDialog open onOpenChange={onClose}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle className="font-display">
-            Delete Recording
-          </AlertDialogTitle>
+          <AlertDialogTitle className="font-display">Delete Recording</AlertDialogTitle>
           <AlertDialogDescription>
-            This action cannot be undone. The recording will be permanently
-            deleted.
+            This action cannot be undone. The recording will be permanently deleted.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>
-            Cancel
-          </AlertDialogCancel>
-          <AlertDialogAction
-            variant="destructive"
-            onClick={removeRecording}
-          >
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction variant="destructive" onClick={removeRecording}>
             {isDeleting ? "Deleting..." : "Delete"}
           </AlertDialogAction>
         </AlertDialogFooter>
@@ -196,20 +177,21 @@ export function ShareDialog({
   recording,
   onClose,
 }: {
-  recording: Omit<typeof videos.$inferSelect, "processingRunId">;
+  recording: {
+    id: string;
+    visibility: "public" | "private";
+    publicVideoId: string;
+  };
   onClose: () => void;
 }) {
-  const [visibility, setVisibility] = useState(
-    recording.visibility === "public",
-  );
+  const [visibility, setVisibility] = useState(recording.visibility === "public");
   const [publicVideoId, setPublicVideoId] = useState(recording.publicVideoId);
-  const [optimisticVisibility, setOptimisticVisibility] =
-    useOptimistic(visibility);
+  const [optimisticVisibility, setOptimisticVisibility] = useOptimistic(visibility);
 
   const publicUrl = publicVideoId
     ? `${window.location.origin}/share/${publicVideoId}`
     : "Generating link...";
-  const privateUrl = `${window.location.origin}/view/${recording.videoId}`;
+  const privateUrl = `${window.location.origin}/video/${recording.id}`;
 
   const copyUrl = (url: string, label: string) => {
     navigator.clipboard.writeText(url);
@@ -222,10 +204,7 @@ export function ShareDialog({
     const newVisibility = isPublic ? "public" : "private";
     startTransition(async () => {
       setOptimisticVisibility(isPublic);
-      const { data, error } = await updateVideoVisibility(
-        recording.videoId,
-        newVisibility,
-      );
+      const { data, error } = await updateVideoVisibility(recording.id, newVisibility);
       if (!data || error) {
         toast.error(error);
         return;
@@ -250,9 +229,7 @@ export function ShareDialog({
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium text-foreground">Public access</p>
-              <p className="text-sm text-muted-foreground">
-                Anyone with the link can view
-              </p>
+              <p className="text-sm text-muted-foreground">Anyone with the link can view</p>
             </div>
 
             <Switch
@@ -283,15 +260,11 @@ export function ShareDialog({
           <div className="space-y-2">
             <Label>Private URL</Label>
             <p className="text-xs text-muted-foreground">
-              Only accessible with this specific link
+              Opens for the video owner while signed in
             </p>
             <div className="flex gap-2">
               <Input value={privateUrl} readOnly className="text-sm" />
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => copyUrl(privateUrl, "Private")}
-              >
+              <Button variant="outline" size="icon" onClick={() => copyUrl(privateUrl, "Private")}>
                 <Copy className="h-4 w-4" />
               </Button>
             </div>

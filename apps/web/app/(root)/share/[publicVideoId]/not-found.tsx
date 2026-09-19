@@ -1,4 +1,3 @@
-
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import { AlertCircleIcon, ArrowRightIcon } from "lucide-react";
@@ -10,18 +9,11 @@ export default function NotFound() {
       <Alert variant="destructive" className="max-w-md">
         <AlertCircleIcon />
         <AlertTitle>
-          <h1 className="text-2xl font-bold mb-2">
-            404 Not Found
-          </h1>
+          <h1 className="text-2xl font-bold mb-2">404 Not Found</h1>
         </AlertTitle>
         <AlertDescription>
-          <p className="mb-4 text-gray-700">
-            The page you are looking for does not exist.
-          </p>
-          <Link
-            href="/"
-            className={buttonVariants({ variant: "link" })}
-          >
+          <p className="mb-4 text-gray-700">The page you are looking for does not exist.</p>
+          <Link href="/" className={buttonVariants({ variant: "link" })}>
             Go to Home
             <ArrowRightIcon className="ml-1" />
           </Link>
@@ -29,4 +21,4 @@ export default function NotFound() {
       </Alert>
     </div>
   );
-};
+}

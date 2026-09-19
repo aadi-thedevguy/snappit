@@ -1,12 +1,7 @@
 "use client";
 
-import React, {
-  Suspense,
-  useEffect,
-  useRef,
-  useState,
-  useCallback,
-} from "react";
+import React, { Suspense, useEffect, useRef, useState, useCallback } from "react";
+import Link from "next/link";
 import { formatDuration } from "@/lib/utils";
 import { incrementVideoViews } from "@/lib/actions/video";
 import {
@@ -55,23 +50,31 @@ const NativeVideoPlayer: React.FC<NativeVideoPlayerProps> = ({
   const [secureVideoUrl, setSecureVideoUrl] = useState<string | null>(initialSecureUrl || null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [isUrlLoading, setIsUrlLoading] = useState(!initialSecureUrl);
+  const didRefreshUrlRef = useRef(false);
+
+  useEffect(() => {
+    didRefreshUrlRef.current = false;
+  }, [videoId]);
 
   const fetchSecureUrl = useCallback(async () => {
     setIsUrlLoading(true);
     setFetchError(null);
     try {
       const response = await fetch(`/api/videos/${videoId}/play`);
+      if (response.status === 202) {
+        setFetchError("Your recording is still processing. This player will check again shortly.");
+        window.setTimeout(() => void fetchSecureUrl(), 5000);
+        return;
+      }
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'You do not have permission to view this video.');
+        throw new Error(errorData.error || "You do not have permission to view this video.");
       }
       const data = await response.json();
       setSecureVideoUrl(data.signedUrl);
     } catch (err: unknown) {
       setFetchError(
-        err instanceof Error
-          ? err.message
-          : "You do not have permission to view this video.",
+        err instanceof Error ? err.message : "You do not have permission to view this video.",
       );
     } finally {
       setIsUrlLoading(false);
@@ -108,10 +111,7 @@ const NativeVideoPlayer: React.FC<NativeVideoPlayerProps> = ({
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
 
   const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-    if (
-      volumeContainerRef.current &&
-      !volumeContainerRef.current.contains(event.target as Node)
-    ) {
+    if (volumeContainerRef.current && !volumeContainerRef.current.contains(event.target as Node)) {
       setShowVolumeSlider(false);
     }
   };
@@ -168,10 +168,7 @@ const NativeVideoPlayer: React.FC<NativeVideoPlayerProps> = ({
       if (!playerRef.current || prevState.seeking) return prevState;
 
       const currentTime = playerRef.current.currentTime;
-      const newTime = Math.max(
-        0,
-        Math.min(prevState.duration, currentTime + sec),
-      );
+      const newTime = Math.max(0, Math.min(prevState.duration, currentTime + sec));
 
       playerRef.current.currentTime = newTime;
       return {
@@ -260,9 +257,7 @@ const NativeVideoPlayer: React.FC<NativeVideoPlayerProps> = ({
     if (!player || state.seeking) return;
 
     const currentDuration =
-      player.duration && isFinite(player.duration)
-        ? player.duration
-        : state.duration;
+      player.duration && isFinite(player.duration) ? player.duration : state.duration;
 
     if (!currentDuration) return;
 
@@ -332,9 +327,7 @@ const NativeVideoPlayer: React.FC<NativeVideoPlayerProps> = ({
   };
 
   // Handle volume change
-  const handleVolumeChange = (
-    event: React.SyntheticEvent<HTMLInputElement>,
-  ) => {
+  const handleVolumeChange = (event: React.SyntheticEvent<HTMLInputElement>) => {
     const inputTarget = event.target as HTMLInputElement;
     const newVolume = Number.parseFloat(inputTarget.value);
     if (playerRef.current) {
@@ -392,14 +385,8 @@ const NativeVideoPlayer: React.FC<NativeVideoPlayerProps> = ({
     };
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
-    playerRef.current?.addEventListener(
-      "enterpictureinpicture",
-      handlePipChange,
-    );
-    playerRef.current?.addEventListener(
-      "leavepictureinpicture",
-      handlePipChange,
-    );
+    playerRef.current?.addEventListener("enterpictureinpicture", handlePipChange);
+    playerRef.current?.addEventListener("leavepictureinpicture", handlePipChange);
 
     return () => {
       if (overlayTimeoutRef.current) {
@@ -423,15 +410,11 @@ const NativeVideoPlayer: React.FC<NativeVideoPlayerProps> = ({
       ref={playerContainerRef}
       onMouseMove={handleMouseMove}
       onMouseLeave={() =>
-        setState((prev) =>
-          prev.isPlaying ? { ...prev, showOverlay: false } : prev,
-        )
+        setState((prev) => (prev.isPlaying ? { ...prev, showOverlay: false } : prev))
       }
       className="relative w-full max-w-full rounded-xl bg-[#181A20] shadow-lg overflow-hidden aspect-video flex flex-col"
     >
-      <Suspense
-        fallback={<Loader2 className="w-10 h-10 text-sky-500 animate-spin" />}
-      >
+      <Suspense fallback={<Loader2 className="w-10 h-10 text-sky-500 animate-spin" />}>
         <div
           className={`relative w-full h-full cursor-pointer group ${
             showVolumeSlider ? "pointer-events-none" : ""
@@ -445,7 +428,14 @@ const NativeVideoPlayer: React.FC<NativeVideoPlayerProps> = ({
           )}
           {fetchError && (
             <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80">
-              <div className="text-red-500 p-4 border border-red-500 rounded bg-red-50/10 backdrop-blur">{fetchError}</div>
+              <div className="max-w-md space-y-3 rounded border border-red-500 bg-red-50/10 p-4 text-center text-red-100 backdrop-blur">
+                <p>{fetchError}</p>
+                {fetchError.includes("could not be processed") && (
+                  <Link className="underline" href="/record">
+                    Create a new recording
+                  </Link>
+                )}
+              </div>
             </div>
           )}
           <video
@@ -471,10 +461,7 @@ const NativeVideoPlayer: React.FC<NativeVideoPlayerProps> = ({
             }
             onTimeUpdate={handleTimeUpdate}
             onDurationChange={() => {
-              if (
-                playerRef.current?.duration &&
-                isFinite(playerRef.current.duration)
-              ) {
+              if (playerRef.current?.duration && isFinite(playerRef.current.duration)) {
                 setState((prev) => ({
                   ...prev,
                   duration: playerRef.current!.duration,
@@ -484,13 +471,9 @@ const NativeVideoPlayer: React.FC<NativeVideoPlayerProps> = ({
             onError={(e) => {
               console.error("Video error:", e);
               setState((prev) => ({ ...prev, isLoaded: false }));
-              
-              // If the initial server-provided URL failed to load, it might have expired
-              // Let's try to fetch a fresh one from our API!
-              if (initialSecureUrl && secureVideoUrl === initialSecureUrl) {
-                console.log("[VideoPlayer] Video failed to load, attempting to fetch a fresh URL...");
-                fetchSecureUrl();
-              }
+              if (didRefreshUrlRef.current) return;
+              didRefreshUrlRef.current = true;
+              void fetchSecureUrl();
             }}
           />
 
@@ -640,9 +623,7 @@ const NativeVideoPlayer: React.FC<NativeVideoPlayerProps> = ({
                 <button
                   className="w-6 h-6 md:w-8 md:h-8 flex items-center justify-center rounded hover:bg-[#23262F] transition"
                   onClick={toggleFullscreen}
-                  aria-label={
-                    state.isFullscreen ? "Exit fullscreen" : "Fullscreen"
-                  }
+                  aria-label={state.isFullscreen ? "Exit fullscreen" : "Fullscreen"}
                 >
                   {state.isFullscreen ? (
                     <Shrink className="w-4 h-4 md:w-5 md:h-5 text-white" />

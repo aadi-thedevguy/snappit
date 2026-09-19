@@ -1,26 +1,16 @@
 "use client";
 import { formatDuration } from "@/lib/utils";
 
-const VideoInfo = ({
-  description,
-  videoId,
-  title,
-  shareable,
-  duration,
-}: VideoInfoProps) => {
+const VideoInfo = ({ description, videoId, title, shareable, duration }: VideoInfoProps) => {
   return (
     <section className="space-y-6">
       <div>
-        <h2 className="font-semibold text-sky-100 border-b-2 border-sky-100 pb-2 mb-4">
-          Metadata
-        </h2>
+        <h2 className="font-semibold text-sky-100 border-b-2 border-sky-100 pb-2 mb-4">Metadata</h2>
         <div className="space-y-4">
           <MetaField label="Video title" value={title} />
           <MetaField label="Video description" value={description} />
-          {shareable && <MetaField label="Video id" value={videoId} />}
-          {duration && (
-            <MetaField label="Duration" value={formatDuration(duration)} />
-          )}
+          {shareable && <MetaField label="Video record" value={videoId} />}
+          {duration && <MetaField label="Duration" value={formatDuration(duration)} />}
         </div>
       </div>
     </section>

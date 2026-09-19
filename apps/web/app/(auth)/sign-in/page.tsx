@@ -6,13 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 const SignIn = () => {
@@ -34,12 +28,7 @@ const SignIn = () => {
     <main className="w-full min-h-screen flex flex-col-reverse lg:flex-row justify-between overflow-hidden max-lg:gap-10">
       <aside className="bg-light-100 lg:w-1/2 flex flex-col justify-between lg:h-screen w-full py-10 px-6 lg:pl-10 gap-6">
         <Link href="/" className="flex items-center gap-2.5">
-          <Image
-            src="/assets/icons/logo.svg"
-            alt="SnapChat Logo"
-            width={32}
-            height={32}
-          />
+          <Image src="/assets/icons/logo.svg" alt="SnapChat Logo" width={32} height={32} />
           <h1 className="text-xl font-black text-blue-100 font-satoshi -tracking-[0.5px]">
             Snappit
           </h1>
@@ -59,15 +48,12 @@ const SignIn = () => {
               ))}
             </figure>
             <p className="text-3xl font-semibold text-dark-100 text-center -tracking-[2px]">
-              Snappit makes screen recording easy. From quick walkthroughs to
-              full presentations, it&apos;s fast, smooth, and shareable in
-              seconds
+              Snappit makes screen recording easy. From quick walkthroughs to full presentations,
+              it&apos;s fast, smooth, and shareable in seconds
             </p>
             <article className="lex flex-col gap-2.5 items-center">
               <div className="flex flex-col items-center gap-1">
-                <p className="text-base font-bold text-dark-100">
-                  Made with ❤️ by
-                </p>
+                <p className="text-base font-bold text-dark-100">Made with ❤️ by</p>
                 <Image
                   src="/assets/images/avatar1.webp"
                   alt="Aditya"
@@ -93,24 +79,14 @@ const SignIn = () => {
         <Card className="shadow-xl max-w-xl w-full px-5 py-6">
           <CardHeader className="text-center">
             <CardTitle className="font-display mb-8 text-2xl">
-              <Link
-                href="/"
-                className="flex items-center gap-2.5 justify-center"
-              >
-                <Image
-                  src="/assets/icons/logo.svg"
-                  alt="SnapChat Logo"
-                  width={40}
-                  height={40}
-                />
-                <h1 className="text-28 font-black text-blue-100 font-satoshi">
-                  Snappit
-                </h1>
+              <Link href="/" className="flex items-center gap-2.5 justify-center">
+                <Image src="/assets/icons/logo.svg" alt="SnapChat Logo" width={40} height={40} />
+                <h1 className="text-28 font-black text-blue-100 font-satoshi">Snappit</h1>
               </Link>
             </CardTitle>
             <CardDescription className="text-3xl mb-8 font-bold text-dark-100 text-center -tracking-[2px]">
-              Create and share your very first{" "}
-              <span className="text-sky-100">Snappit video</span> in no time!
+              Create and share your very first <span className="text-sky-100">Snappit video</span>{" "}
+              in no time!
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -124,12 +100,7 @@ const SignIn = () => {
               {loading ? (
                 <Loader2 className="animate-spin w-5 h-5" />
               ) : (
-                <Image
-                  src="/assets/icons/google.svg"
-                  alt="Google Icon"
-                  width={22}
-                  height={22}
-                />
+                <Image src="/assets/icons/google.svg" alt="Google Icon" width={22} height={22} />
               )}
               <span>Sign in with Google</span>
             </Button>

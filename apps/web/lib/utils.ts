@@ -27,7 +27,7 @@ export const updateFormSchema = z.object({
     .min(20, "Description must be at least 20 characters.")
     .max(500, "Description must be at most 500 characters."),
   visibility: z.enum(["public", "private"]),
-  videoId: z.string(),
+  videoId: z.uuid(),
 });
 
 export const formatDuration = (duration: number): string => {
@@ -43,15 +43,6 @@ export const formatDuration = (duration: number): string => {
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
-}
-
-export function generatePublicVideoId() {
-  const str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let result = "";
-  for (let i = 0; i < 9; i++) {
-    result += str.charAt(Math.floor(Math.random() * str.length));
-  }
-  return result;
 }
 
 export const updateURLParams = (
@@ -102,25 +93,9 @@ export const generatePagination = (currentPage: number, totalPages: number) => {
     return [1, 2, 3, 4, 5, "...", totalPages];
   }
   if (currentPage >= totalPages - 2) {
-    return [
-      1,
-      "...",
-      totalPages - 4,
-      totalPages - 3,
-      totalPages - 2,
-      totalPages - 1,
-      totalPages,
-    ];
+    return [1, "...", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
   }
-  return [
-    1,
-    "...",
-    currentPage - 1,
-    currentPage,
-    currentPage + 1,
-    "...",
-    totalPages,
-  ];
+  return [1, "...", currentPage - 1, currentPage, currentPage + 1, "...", totalPages];
 };
 
 export function daysAgo(inputDate: Date): string {
@@ -161,22 +136,10 @@ export const formatPrivateKey = (rawKey: string) => {
   return `${header}\n${chunks.join("\n")}\n${footer}`;
 };
 
-export type PlaybackRecord = {
-  videoId: string;
-  rawVideoId?: string | null;
-  processedVideoId?: string | null;
+export function canDownloadVideo(video: {
   processingStatus?: string | null;
-};
-
-export function canDownloadVideo(video: PlaybackRecord): boolean {
+}): boolean {
   return (
-    video.processingStatus === "ready" &&
-    !!video.processedVideoId?.endsWith(".mp4")
+    video?.processingStatus !== "uploading"
   );
-}
-
-export function playableVideoKey(video: PlaybackRecord): string {
-  if (canDownloadVideo(video)) return video.processedVideoId!;
-  // Legacy uploads live directly under videos/ until migrated.
-  return video.rawVideoId || video.videoId;
 }

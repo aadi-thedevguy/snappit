@@ -1,9 +1,4 @@
-import aj, {
-  ArcjetDecision,
-  shield,
-  slidingWindow,
-  validateEmail,
-} from "@/lib/arcjet";
+import aj, { ArcjetDecision, shield, slidingWindow, validateEmail } from "@/lib/arcjet";
 import ip from "@arcjet/ip";
 import { auth } from "@/lib/auth";
 import { toNextJsHandler } from "better-auth/next-js";
@@ -66,32 +61,20 @@ export const POST = async (req: NextRequest) => {
     const decision = await protectedAuth(req);
     if (decision.isDenied()) {
       if (decision.reason.isEmail()) {
-        return NextResponse.json(
-          { message: "Email validation failed" },
-          { status: 400 },
-        );
+        return NextResponse.json({ message: "Email validation failed" }, { status: 400 });
       }
       if (decision.reason.isRateLimit()) {
-        return NextResponse.json(
-          { message: "Rate limit exceeded" },
-          { status: 429 },
-        );
+        return NextResponse.json({ message: "Rate limit exceeded" }, { status: 429 });
       }
       if (decision.reason.isShield()) {
-        return NextResponse.json(
-          { message: "Shield validation failed" },
-          { status: 400 },
-        );
+        return NextResponse.json({ message: "Shield validation failed" }, { status: 400 });
       }
     }
   } catch (error) {
     if (error instanceof Error) {
       return NextResponse.json({ message: error.message }, { status: 500 });
     }
-    return NextResponse.json(
-      { message: "Internal server error" },
-      { status: 500 },
-    );
+    return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 
   return authHandlers.POST(req);

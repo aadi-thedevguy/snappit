@@ -1,6 +1,4 @@
 import {
-  // pgTable,
-  // jsonb,
   text,
   timestamp,
   boolean,
@@ -68,34 +66,44 @@ export const verification = createTable("verification", {
   updatedAt: timestamp("updated_at"),
 });
 
-export const videos = createTable("videos", {
-  id: uuid("id").primaryKey().defaultRandom().unique(),
-  publicVideoId: text("public_video_id").unique().notNull(),
-  title: text("title").notNull(),
-  description: text("description").notNull(),
-  videoId: text("video_id").notNull(),
-  rawVideoId: text("raw_video_id"),
-  rawMimeType: text("raw_mime_type"),
-  processedVideoId: text("processed_video_id"),
-  processedMimeType: text("processed_mime_type"),
-  processingStatus: text("processing_status")
-    .$type<"uploaded" | "processing" | "ready" | "failed">()
-    .notNull()
-    .default("ready"),
-  processingError: text("processing_error"),
-  processingRunId: text("processing_run_id"),
-  thumbnailId: text("thumbnail_id").notNull(),
-  visibility: text("visibility").$type<"public" | "private">().notNull(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => user.id, { onDelete: "cascade" }),
-  views: integer("views").notNull().default(0),
-  duration: integer("duration"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-}, (table) => ({
-  publicVideoIdIndex: index("public_video_id_idx").on(table.publicVideoId)
-}));
+export const videos = createTable(
+  "videos",
+  {
+    id: uuid("id").primaryKey().defaultRandom().unique(),
+    publicVideoId: text("public_video_id").unique().notNull(),
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    videoId: text("video_id"),
+    rawVideoId: text("raw_video_id"),
+    rawMimeType: text("raw_mime_type"),
+    rawSize: integer("raw_size"),
+    processedVideoId: text("processed_video_id"),
+    processedMimeType: text("processed_mime_type"),
+    processingStatus: text("processing_status")
+      .$type<"uploading" | "uploaded" | "processing" | "ready" | "failed">()
+      .notNull()
+      .default("ready"),
+    processingError: text("processing_error"),
+    processingRunId: text("processing_run_id"),
+    thumbnailId: text("thumbnail_id").notNull(),
+    visibility: text("visibility").$type<"public" | "private">().notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    views: integer("views").notNull().default(0),
+    duration: integer("duration"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    publicVideoIdIndex: index("public_video_id_idx").on(table.publicVideoId),
+    userStatusCreatedIndex: index("snappit_videos_user_status_created_idx").on(
+      table.userId,
+      table.processingStatus,
+      table.createdAt,
+    ),
+  }),
+);
 
 export const schema = {
   user,

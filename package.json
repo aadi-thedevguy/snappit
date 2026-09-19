@@ -6,6 +6,7 @@
     "node": ">=22.4.0"
   },
   "scripts": {
+    "format": "prettier --write .",
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
@@ -31,6 +32,7 @@
     "tsx": "^4.20.0",
     "@types/node": "^22",
     "eslint": "^9",
-    "typescript-eslint": "^8.0.0"
+    "typescript-eslint": "^8.0.0",
+    "prettier": "^3.9.8"
   }
 }

@@ -3,11 +3,16 @@
   "name": "Snappit",
   "version": "1.0.0",
   "description": "Record your screen and upload directly to Snappit",
-  "permissions": ["activeTab", "storage", "unlimitedStorage", "tabs", "offscreen", "scripting", "cookies"],
-  "host_permissions": [
-    "http://localhost/*",
-    "https://snappit.adityakhare.com/*"
+  "permissions": [
+    "activeTab",
+    "storage",
+    "unlimitedStorage",
+    "tabs",
+    "offscreen",
+    "scripting",
+    "cookies"
   ],
+  "host_permissions": ["http://localhost/*", "https://snappit.adityakhare.com/*"],
   "action": {
     "default_popup": "popup.html",
     "default_icon": "icon.png"
@@ -19,7 +24,7 @@
       "run_at": "document_start"
     }
   ],
-   "background": {
+  "background": {
     "service_worker": "background.js"
   },
   "icons": {

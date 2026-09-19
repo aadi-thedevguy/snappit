@@ -1,483 +1,283 @@
 "use client";
 
-import { useEffect, useCallback, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import {
-  getVideoUploadUrl,
-  getThumbnailUploadUrl,
-  saveVideoDetails,
-} from "@/lib/actions/video";
 import { useRouter } from "next/navigation";
-import { MAX_THUMBNAIL_SIZE, MAX_VIDEO_SIZE } from "@/constants";
+import { AlertCircleIcon, ImageIcon, Monitor, Video } from "lucide-react";
+import { toast } from "sonner";
+import { beginRecordingUpload, finalizeRecordingUpload } from "@/lib/actions/video";
+import { MAX_THUMBNAIL_SIZE } from "@/constants";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertCircleIcon, ImageIcon, UploadIcon, Video, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import Image from "next/image";
 import { Switch } from "@/components/ui/switch";
 import { clearPendingUpload, getPendingUpload } from "@/lib/hooks/videoStore";
 import { generateThumbnail } from "@/lib/hooks/generateThumbnail";
 import { formSchema } from "@/lib/utils";
 
-const uploadFileToStorage = async (
-  file: File,
-  uploadUrl: string,
-): Promise<void> => {
-  try {
-    const response = await fetch(uploadUrl, {
-      method: "PUT",
-      headers: {
-        "Content-Type": file.type,
-      },
-      body: file,
-    });
-    if (!response.ok)
-      throw new Error(`Upload failed with status ${response.status}`);
-  } catch (error) {
-    console.error("Upload failed:", error);
-    throw error;
-  }
-};
-
-const UploadPage = () => {
-  const router = useRouter();
-  const date = new Date();
-  const formattedDate = date.toLocaleString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
+async function putFile(file: Blob, uploadUrl: string, contentType: string, tagging?: string) {
+  const response = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: {
+      "Content-Type": contentType,
+      ...(tagging ? { "x-amz-tagging": tagging } : {}),
+    },
+    body: file,
   });
+  if (!response.ok) throw new Error(`Upload failed with status ${response.status}`);
+}
 
+export default function UploadPage() {
+  const router = useRouter();
+  const thumbnailInputRef = useRef<HTMLInputElement>(null);
+  const [recording, setRecording] = useState<File | null>(null);
+  const [thumbnail, setThumbnail] = useState<File | null>(null);
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
+  const [loadingRecording, setLoadingRecording] = useState(true);
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+  const [duration, setDuration] = useState(0);
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      title: `Snappit - ${formattedDate}`,
-      description:
-        "This video has been recorded by Snappit. Generate yours at snappit.adityakhare.com",
+      title: `Snappit recording - ${new Date().toLocaleDateString()}`,
+      description: "Recorded with Snappit.",
       visibility: "private",
       duration: 0,
     },
   });
 
-  // Video state & refs
-  const videoInputRef = useRef<HTMLInputElement>(null);
-  const [videoFile, setVideoFile] = useState<File | null>(null);
-  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
-  const videoUrlRef = useRef<string | null>(null);
-
-  // Thumbnail state & refs
-  const thumbnailInputRef = useRef<HTMLInputElement>(null);
-  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
-  const [thumbnailPreviewUrl, setThumbnailPreviewUrl] = useState<string | null>(
-    null,
-  );
-  const thumbnailUrlRef = useRef<string | null>(null);
-
-  const setSafeVideoPreviewUrl = useCallback((url: string | null) => {
-    if (videoUrlRef.current) URL.revokeObjectURL(videoUrlRef.current);
-    videoUrlRef.current = url;
-    setVideoPreviewUrl(url);
-  }, []);
-
-  const setSafeThumbnailPreviewUrl = useCallback((url: string | null) => {
-    if (thumbnailUrlRef.current) URL.revokeObjectURL(thumbnailUrlRef.current);
-    thumbnailUrlRef.current = url;
-    setThumbnailPreviewUrl(url);
-  }, []);
-
-  // Cleanup object URLs safely on component unmount
   useEffect(() => {
-    return () => {
-      if (videoUrlRef.current) URL.revokeObjectURL(videoUrlRef.current);
-      if (thumbnailUrlRef.current) URL.revokeObjectURL(thumbnailUrlRef.current);
-    };
-  }, []);
-
-  // File Select Handlers
-  const handleVideoSelect = useCallback(
-    (file: File | undefined) => {
-      if (!file) {
-        setVideoFile(null);
-        setSafeVideoPreviewUrl(null);
-        return;
-      }
-      if (file.size > MAX_VIDEO_SIZE) {
-        toast.error("File is too large", {
-          description: `The maximum file size is ${MAX_VIDEO_SIZE / 1024 / 1024}MB.`,
-        });
-        if (videoInputRef.current) videoInputRef.current.value = "";
-        setVideoFile(null);
-        setSafeVideoPreviewUrl(null);
-        return;
-      }
-      setVideoFile(file);
-      setSafeVideoPreviewUrl(URL.createObjectURL(file));
-
-      if (!form.getValues("title")) {
-        form.setValue("title", file.name.replace(/\.[^.]+$/, ""));
-      }
-    },
-    [form, setSafeVideoPreviewUrl],
-  );
-
-  const handleThumbnailSelect = useCallback(
-    (file: File | undefined) => {
-      if (!file) {
-        setThumbnailFile(null);
-        setSafeThumbnailPreviewUrl(null);
-        return;
-      }
-      if (file.size > MAX_THUMBNAIL_SIZE) {
-        toast.error("File is too large", {
-          description: `The maximum file size is ${MAX_THUMBNAIL_SIZE / 1024 / 1024}MB.`,
-        });
-        if (thumbnailInputRef.current) thumbnailInputRef.current.value = "";
-        setThumbnailFile(null);
-        setSafeThumbnailPreviewUrl(null);
-        return;
-      }
-      setThumbnailFile(file);
-      setSafeThumbnailPreviewUrl(URL.createObjectURL(file));
-    },
-    [setSafeThumbnailPreviewUrl],
-  );
-
-  const resetVideo = useCallback(() => {
-    setVideoFile(null);
-    setSafeVideoPreviewUrl(null);
-    if (videoInputRef.current) videoInputRef.current.value = "";
-  }, [setSafeVideoPreviewUrl]);
-
-  const resetThumbnail = useCallback(() => {
-    setThumbnailFile(null);
-    setSafeThumbnailPreviewUrl(null);
-    if (thumbnailInputRef.current) thumbnailInputRef.current.value = "";
-  }, [setSafeThumbnailPreviewUrl]);
-
-  const generateAndSetThumbnail = useCallback(
-    async (videoBlob: Blob) => {
+    let active = true;
+    void (async () => {
       try {
-        const thumbnailBlob = await generateThumbnail(videoBlob);
-        if (thumbnailBlob) {
-          const thumbnailFile = new File([thumbnailBlob], "thumbnail.jpg", {
-            type: "image/jpeg",
-            lastModified: Date.now(),
-          });
-
-          if (thumbnailInputRef.current) {
-            const dataTransfer = new DataTransfer();
-            dataTransfer.items.add(thumbnailFile);
-            thumbnailInputRef.current.files = dataTransfer.files;
-          }
-          handleThumbnailSelect(thumbnailFile);
+        const pending = await getPendingUpload();
+        if (!active) return;
+        if (!pending || pending.blob.type.split(";")[0] !== "video/webm" || !pending.blob.size) {
+          setLoadingRecording(false);
+          return;
         }
-      } catch (err) {
-        console.error("Error generating thumbnail:", err);
-        // thumbnail will be generated at upload time as fallback
+        const file = new File([pending.blob], "recording.webm", {
+          type: "video/webm",
+        });
+        setRecording(file);
+        setDuration(Math.floor(pending.duration));
+        form.setValue("duration", Math.floor(pending.duration));
+        const preview = URL.createObjectURL(file);
+        setObjectUrl(preview);
+        const generated = await generateThumbnail(file);
+        if (!active) return;
+        if (generated) {
+          const image = new File([generated], "thumbnail.jpg", {
+            type: "image/jpeg",
+          });
+          setThumbnail(image);
+          setThumbnailUrl(URL.createObjectURL(image));
+        }
+      } catch (error) {
+        console.error("Unable to load pending recording:", error);
+      } finally {
+        if (active) setLoadingRecording(false);
       }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [form]);
+
+  useEffect(
+    () => () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      if (thumbnailUrl) URL.revokeObjectURL(thumbnailUrl);
     },
-    [handleThumbnailSelect],
+    [objectUrl, thumbnailUrl],
   );
 
-  // Check IndexedDB for a pending recording on mount
-  const getDataFromStorage = useCallback(async () => {
-    const pending = await getPendingUpload();
-    if (pending) {
-      const file = new File([pending.blob], "recording.webm", {
-        type: "video/webm",
-        lastModified: Date.now(),
-      });
-      if (videoInputRef.current) {
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
-        videoInputRef.current.files = dataTransfer.files;
-      }
-      handleVideoSelect(file);
-
-      if (pending.duration > 0) {
-        form.setValue("duration", Math.floor(pending.duration));
-      }
-
-      await generateAndSetThumbnail(pending.blob);
+  const selectThumbnail = (file?: File) => {
+    if (!file) return;
+    if (file.type !== "image/jpeg" || file.size > MAX_THUMBNAIL_SIZE) {
+      toast.error("Choose a JPEG thumbnail under the size limit.");
       return;
     }
-  }, [form, generateAndSetThumbnail, handleVideoSelect]);
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      void getDataFromStorage();
-    }, 0);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [getDataFromStorage]);
+    if (thumbnailUrl) URL.revokeObjectURL(thumbnailUrl);
+    setThumbnail(file);
+    setThumbnailUrl(URL.createObjectURL(file));
+  };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    try {
-      if (!videoFile || !thumbnailFile) {
-        form.setError("root", {
-          message: "Please upload video and thumbnail files.",
-        });
-        return;
-      }
-
-      const { data, error } = await getVideoUploadUrl(videoFile.type);
-      if (!data || error) {
-        form.setError("root", {
-          message: error || "Failed to retrieve video upload URL.",
-        });
-        return;
-      }
-
-      const { videoId, rawVideoId, uploadUrl: videoUploadUrl } = data;
-      await uploadFileToStorage(videoFile, videoUploadUrl);
-
-      const { data: thumbnailData, error: thumbnailError } =
-        await getThumbnailUploadUrl(videoId);
-
-      if (!thumbnailData || thumbnailError) {
-        form.setError("root", {
-          message: thumbnailError || "Failed to retrieve thumbnail upload URL.",
-        });
-        return;
-      }
-      const { uploadUrl: thumbnailUploadUrl, thumbnailId } =
-        thumbnailData;
-      await uploadFileToStorage(thumbnailFile, thumbnailUploadUrl);
-
-      await saveVideoDetails({
-        videoId,
-        rawVideoId,
-        rawMimeType: videoFile.type,
-        ...values,
-        thumbnailId,
-      });
-
-      // Clear IndexedDB only after a successful upload
-      await clearPendingUpload();
-      router.push(`/video/${videoId}`);
-    } catch (error) {
-      console.error("Error submitting form:", error);
+    if (!recording || !thumbnail) {
       form.setError("root", {
-        message: "An error occurred during upload. Please try again.",
+        message: "No recording is ready to upload. Record a video first.",
+      });
+      return;
+    }
+    try {
+      const begun = await beginRecordingUpload({ ...values, duration });
+      if (!begun.data || begun.error)
+        throw new Error(begun.error || "Could not begin the recording upload.");
+      await Promise.all([
+        putFile(recording, begun.data.rawUploadUrl, "video/webm", "snappit-kind=raw"),
+        putFile(thumbnail, begun.data.thumbnailUploadUrl, "image/jpeg"),
+      ]);
+      const finalized = await finalizeRecordingUpload({
+        ...values,
+        duration,
+        videoId: begun.data.videoId,
+      });
+      if (!finalized.data || finalized.error)
+        throw new Error(finalized.error || "Could not verify the recording upload.");
+      await clearPendingUpload();
+      router.push(`/video/${finalized.data.videoId}`);
+    } catch (error) {
+      console.error("Recording upload failed:", error);
+      form.setError("root", {
+        message:
+          error instanceof Error ? error.message : "Recording upload failed. Please try again.",
       });
     }
   };
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent, isThumbnail: boolean = false) => {
-      e.preventDefault();
-      const droppedFile = e.dataTransfer.files[0];
-      if (isThumbnail) {
-        if (!droppedFile || !droppedFile.type.startsWith("image/")) {
-          toast.error("Invalid file", {
-            description: "Please select an image file",
-          });
-          return;
-        }
-        handleThumbnailSelect(droppedFile);
-        return;
-      }
-      if (!droppedFile || !droppedFile.type.startsWith("video/")) {
-        toast.error("Invalid file", {
-          description: "Please select a video file",
-        });
-        return;
-      }
-      handleVideoSelect(droppedFile);
-    },
-    [handleThumbnailSelect, handleVideoSelect],
-  );
+  if (loadingRecording)
+    return (
+      <main className="container mx-auto max-w-2xl px-4 py-12 text-center">Loading recording…</main>
+    );
+  if (!recording)
+    return (
+      <main className="container mx-auto max-w-2xl px-4 py-12 text-center">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+          <Monitor className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <h1 className="text-2xl font-display font-bold">No recording is ready to upload</h1>
+        <p className="mt-2 text-muted-foreground">
+          Record your screen with Snappit, then return here to save it.
+        </p>
+        <Button asChild className="mt-6 rounded-full">
+          <Link href="/record">Go to recording</Link>
+        </Button>
+      </main>
+    );
 
   return (
-    <main className="container mx-auto px-4 max-w-2xl py-8">
-      <h1 className="text-3xl font-display font-bold text-foreground mb-8">
-        Upload a video
-      </h1>
-
-      <Card className="shadow-card border-border">
+    <main className="container mx-auto max-w-2xl px-4 py-8">
+      <h1 className="mb-8 text-3xl font-display font-bold">Save your recording</h1>
+      <Card className="border-border shadow-card">
         <CardContent className="p-6">
           <form onSubmit={form.handleSubmit(onSubmit)}>
-            {/* Error Alert */}
             {form.formState.errors.root && (
               <Alert variant="destructive" className="my-4">
                 <AlertCircleIcon />
-                <AlertTitle>Upload Failed</AlertTitle>
-                <AlertDescription>
-                  {form.formState.errors.root.message}
-                </AlertDescription>
+                <AlertTitle>Upload failed</AlertTitle>
+                <AlertDescription>{form.formState.errors.root.message}</AlertDescription>
               </Alert>
             )}
-
-            {/* Title */}
             <div className="my-6">
-              <Label htmlFor="title" className="mb-3 text-primary">
+              <Label htmlFor="title" className="mb-3">
                 Title
               </Label>
-              <Input
-                id="title"
-                placeholder="Enter a clear and concise video title"
-                {...form.register("title")}
-              />
+              <Input id="title" {...form.register("title")} />
               {form.formState.errors.title && (
-                <p className="text-sm text-red-500 mt-2">
-                  {form.formState.errors.title.message}
-                </p>
+                <p className="mt-2 text-sm text-red-500">{form.formState.errors.title.message}</p>
               )}
             </div>
-
-            {/* Description */}
             <div className="my-6">
               <Label htmlFor="description" className="mb-2">
                 Description
               </Label>
-              <Textarea
-                id="description"
-                placeholder="Add a description for your video..."
-                rows={3}
-                {...form.register("description")}
-              />
+              <Textarea id="description" rows={3} {...form.register("description")} />
               {form.formState.errors.description && (
-                <p className="text-sm text-red-500 mt-2">
+                <p className="mt-2 text-sm text-red-500">
                   {form.formState.errors.description.message}
                 </p>
               )}
             </div>
-
-            {/* Video upload */}
-            <div className="my-6">
-              <Label htmlFor="video" className="mb-3">
-                Video
-              </Label>
-              {videoFile ? (
-                <div className="relative rounded-2xl border border-border overflow-hidden bg-foreground/5">
-                  <video
-                    src={videoPreviewUrl ?? undefined}
-                    className="w-full aspect-video object-contain"
-                    controls
-                    onLoadedMetadata={(e) => {
-                      const video = e.currentTarget;
-                      if (
-                        video.duration &&
-                        video.duration !== Infinity &&
-                        !isNaN(video.duration) &&
-                        form.getValues("duration") <= 0
-                      ) {
-                        form.setValue("duration", Math.floor(video.duration));
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={resetVideo}
-                    className="cursor-pointer absolute top-2 right-2 p-1.5 rounded-full bg-foreground/60 text-background hover:bg-foreground/80 transition-colors"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              ) : (
-                <div
-                  className="border-2 border-dashed border-border rounded-2xl p-12 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-sky-100/50 hover:bg-sky-100/5 transition-colors"
-                  onClick={() => videoInputRef.current?.click()}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={handleDrop}
-                >
-                  <UploadIcon className="h-8 w-8 text-muted-foreground" />
-                  <p className="text-muted-foreground font-medium">
-                    click to upload your video
-                  </p>
-                </div>
-              )}
-              <input
-                ref={videoInputRef}
-                type="file"
-                accept="video/*"
-                className="hidden"
-                onChange={(e) => handleVideoSelect(e.target.files?.[0])}
+            <div className="my-6 overflow-hidden rounded-2xl border border-border bg-foreground/5">
+              <video
+                src={objectUrl ?? undefined}
+                className="aspect-video w-full object-contain"
+                controls
+                preload="metadata"
+                onLoadedMetadata={(event) => {
+                  const value = event.currentTarget.duration;
+                  if (Number.isFinite(value) && value > 0 && duration <= 0) {
+                    setDuration(Math.floor(value));
+                    form.setValue("duration", Math.floor(value));
+                  }
+                }}
               />
             </div>
-
             <div className="my-6">
               <Label className="mb-3">Thumbnail</Label>
-              {thumbnailFile ? (
-                <div className="relative w-full aspect-video rounded-2xl border border-border overflow-hidden bg-foreground/5">
+              {thumbnailUrl ? (
+                <div className="relative aspect-video overflow-hidden rounded-2xl border border-border">
                   <Image
-                    src={thumbnailPreviewUrl ?? ""}
-                    alt="Selected thumbnail"
+                    src={thumbnailUrl}
+                    alt="Recording thumbnail"
                     fill
                     className="object-cover"
                   />
                   <button
                     type="button"
-                    onClick={resetThumbnail}
-                    className="cursor-pointer absolute top-2 right-2 p-1.5 rounded-full bg-foreground/60 text-background hover:bg-foreground/80 transition-colors"
+                    aria-label="Remove custom thumbnail"
+                    onClick={() => thumbnailInputRef.current?.click()}
+                    className="absolute right-2 top-2 rounded-full bg-foreground/60 p-1.5 text-background"
                   >
-                    <X className="h-4 w-4" />
+                    <ImageIcon className="h-4 w-4" />
                   </button>
                 </div>
               ) : (
-                <div
-                  className="border-2 border-dashed border-border rounded-2xl p-12 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-sky-100/50 hover:bg-sky-100/5 transition-colors"
+                <button
+                  type="button"
                   onClick={() => thumbnailInputRef.current?.click()}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => handleDrop(e, true)}
+                  className="flex w-full flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-border p-10 text-muted-foreground"
                 >
-                  <ImageIcon className="h-8 w-8 text-muted-foreground" />
-                  <p className="text-muted-foreground font-medium">
-                    click to upload a custom thumbnail
-                  </p>
-                </div>
+                  <ImageIcon className="h-8 w-8" />
+                  Choose a JPEG thumbnail
+                </button>
               )}
               <input
                 ref={thumbnailInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg"
                 className="hidden"
-                onChange={(e) => handleThumbnailSelect(e.target.files?.[0])}
+                onChange={(event) => selectThumbnail(event.target.files?.[0])}
               />
             </div>
-
             <div className="my-6 flex items-center gap-4">
-              <div>
-                <Label className="text-base font-medium">Public</Label>
-              </div>
+              <Label className="text-base font-medium">Public</Label>
               <Controller
                 control={form.control}
                 name="visibility"
                 render={({ field }) => (
                   <Switch
                     checked={field.value === "public"}
-                    onCheckedChange={(checked) =>
-                      field.onChange(checked ? "public" : "private")
-                    }
-                    className="data-checked:bg-sky-100 cursor-pointer"
+                    onCheckedChange={(checked) => field.onChange(checked ? "public" : "private")}
                   />
                 )}
               />
             </div>
-
-            {/* Upload button */}
             <Button
               type="submit"
-              disabled={form.formState.isSubmitting}
-              className="bg-sky-100 hover:bg-sky-100/80 px-3 py-6 w-full rounded-full gap-2 shadow-elegant"
+              disabled={form.formState.isSubmitting || !thumbnail}
+              className="w-full gap-2 rounded-full bg-sky-100 px-3 py-6 hover:bg-sky-100/80"
               size="lg"
             >
               <Video className="h-5 w-5" />
-              {form.formState.isSubmitting ? "Uploading..." : "Upload Video"}
+              {form.formState.isSubmitting ? "Uploading…" : "Save recording"}
             </Button>
+            {!thumbnail && (
+              <p className="mt-2 text-sm text-muted-foreground">
+                A thumbnail could not be generated. Choose a JPEG to continue.
+              </p>
+            )}
           </form>
         </CardContent>
       </Card>
     </main>
   );
-};
-
-export default UploadPage;
+}

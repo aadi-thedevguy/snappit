@@ -1,44 +1,41 @@
 "use server";
 
-import { HeadObjectCommand } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { randomBytes } from "node:crypto";
 
 import { db } from "@/drizzle/db";
 import { videos, user } from "@/drizzle/schema";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { and, desc, eq, sql } from "drizzle-orm";
-import { DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { and, desc, eq, or, sql } from "drizzle-orm";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { auth } from "@/lib/auth";
-import {
-  doesTitleMatch,
-  formSchema,
-  generatePublicVideoId,
-  getOrderByClause,
-} from "@/lib/utils";
+import { doesTitleMatch, formSchema, getOrderByClause } from "@/lib/utils";
 import aj, { fixedWindow, request } from "../arcjet";
 import z from "zod";
 import { updateFormSchema } from "@/lib/utils";
 import { sendVideoUploaded } from "@/lib/inngest/send-uploaded";
-import { uploadedVideoEvent, MAX_VIDEO_SIZE } from "@snappit/validation";
+import { MAX_VIDEO_SIZE } from "@snappit/validation";
 import { inngest } from "@/lib/inngest/client";
 import {
   createCloudFrontVideoUrl,
-  createProcessedVideoDownloadUrl,
-  createRawVideoUploadUrl,
+  createVideoDownloadUrl,
   getProcessedVideoStorageKey,
   getRawVideoStorageKey,
+  getThumbnailStorageKey,
   getVideoObjectKey,
+  PROCESSED_VIDEO_CONTENT_TYPE,
   RAW_VIDEO_CONTENT_TYPE,
+  THUMBNAIL_CONTENT_TYPE,
   S3_BUCKET_NAME,
   s3,
 } from "@/lib/storage/videoStorage";
 
-import {
-  canDownloadVideo,
-  playableVideoKey,
-  type PlaybackRecord,
-} from "@/lib/utils";
+import { canDownloadVideo } from "@/lib/utils";
+import { MAX_THUMBNAIL_SIZE } from "@/constants";
+
+const finalizeSchema = formSchema.extend({ videoId: z.uuid() });
+const uuidSchema = z.uuid();
 
 const validateWithArcjet = async (fingerPrint: string) => {
   const rateLimit = aj.withRule(
@@ -54,6 +51,9 @@ const validateWithArcjet = async (fingerPrint: string) => {
   if (decision.isDenied()) {
     throw new Error("Rate Limit Exceeded");
   }
+  const ipLimit = aj.withRule(fixedWindow({ mode: "LIVE", window: "1m", max: 20 }));
+  const ipDecision = await ipLimit.protect(req);
+  if (ipDecision.isDenied()) throw new Error("IP Rate Limit Exceeded");
 };
 
 // Helper functions with descriptive names
@@ -76,144 +76,272 @@ const buildVideoWithUserQuery = () =>
     .from(videos)
     .leftJoin(user, eq(videos.userId, user.id));
 
-// Server Actions
-export const getVideoUploadUrl = async (
-  contentType: string = RAW_VIDEO_CONTENT_TYPE,
-) => {
-  try {
-    await getSessionUserId();
+async function createAuthorizedThumbnailUrl(record: { id: string }) {
+  return `/api/videos/${record.id}/thumbnail`;
+}
 
-    const timestamp = Date.now();
-    const videoId = `video-${timestamp}`;
-
-    const uploadUrl = await createRawVideoUploadUrl(videoId, contentType);
-
-    return {
-      data: {
-        videoId,
-        rawVideoId: getRawVideoStorageKey(videoId),
-        uploadUrl,
-      },
-    };
-  } catch (error) {
-    console.error("Error getting video upload URL:", error);
-    if (error instanceof Error && error.message === "Unauthenticated") {
-      return { error: "You must be logged in to get a video upload URL." };
-    }
-    return { error: "An unexpected error occurred." };
-  }
-};
-
-export const getThumbnailUploadUrl = async (videoId: string) => {
-  try {
-    // AWS S3 Implementation
-    const thumbnailId = `thumbnail-${Date.now()}-${videoId}`;
-
-    // Generate presigned URL using AWS SDK
-    // Note: This requires AWS SDK configuration in the server
-    const uploadUrl = await getSignedUrl(
-      s3,
-      new PutObjectCommand({
-        Bucket: S3_BUCKET_NAME,
-        Key: `thumbnails/${thumbnailId}`,
-      }),
-      {
-        expiresIn: 3600,
-      },
-    );
-
-    return { data: { uploadUrl, thumbnailId } };
-  } catch (error) {
-    console.error("Error getting thumbnail upload URL:", error);
-    return { error: "An unexpected error occurred." };
-  }
-};
-
-export const saveVideoDetails = async (videoDetails: VideoDetails) => {
+// Create the owned row before issuing a single-use upload capability.
+export const beginRecordingUpload = async (input: unknown) => {
   try {
     const userId = await getSessionUserId();
     await validateWithArcjet(userId);
-    formSchema.parse(videoDetails);
-    uploadedVideoEvent.parse({ videoId: videoDetails.videoId });
-    const rawKey = getRawVideoStorageKey(videoDetails.videoId);
-    if (videoDetails.rawVideoId && videoDetails.rawVideoId !== rawKey) {
-      throw new Error("Invalid raw video key");
-    }
-    const uploaded = await s3.send(new HeadObjectCommand({
-      Bucket: S3_BUCKET_NAME, Key: getVideoObjectKey(rawKey),
-    }));
-    if (!uploaded.ContentLength || uploaded.ContentLength > MAX_VIDEO_SIZE) {
-      throw new Error("Uploaded video is missing or exceeds the size limit");
-    }
-
+    const values = formSchema.parse(input);
     const now = new Date();
-    let isUnique = false;
-    let publicVideoId = "";
-
-    while (!isUnique) {
-      publicVideoId = generatePublicVideoId();
-
-      const [result] = await db
-        .select({ publicVideoId: videos.publicVideoId })
-        .from(videos)
-        .where(eq(videos.publicVideoId, publicVideoId));
-
-      // If result is undefined, we didn't find a match, meaning it's unique!
-      if (!result) {
-        isUnique = true;
-      }
-    }
-
-    await db
-      .insert(videos)
-      .values({
-        videoId: videoDetails.videoId,
-        rawVideoId:
-          videoDetails.rawVideoId ??
-          getRawVideoStorageKey(videoDetails.videoId),
-        rawMimeType: videoDetails.rawMimeType ?? RAW_VIDEO_CONTENT_TYPE,
-        processedVideoId: null,
-        processedMimeType: null,
-        processingStatus: "uploaded",
-        processingError: null,
-        thumbnailId: videoDetails.thumbnailId,
-        title: videoDetails.title,
-        description: videoDetails.description,
-        visibility: videoDetails.visibility,
-        duration: videoDetails.duration,
-        publicVideoId,
-        userId,
-        createdAt: now,
-        updatedAt: now,
+    const abandonedBefore = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const abandoned = await db
+      .select({
+        id: videos.id,
       })
-      .returning();
+      .from(videos)
+      .where(
+        and(
+          eq(videos.userId, userId),
+          eq(videos.processingStatus, "uploading"),
+          sql`${videos.createdAt} < ${abandonedBefore}`,
+        ),
+      );
+    for (const row of abandoned) {
+      const rawStorageKey = getRawVideoStorageKey(userId, row.id);
+      const thumbnailStorageKey = getThumbnailStorageKey(userId, row.id);
+      await Promise.allSettled([
+        s3.send(
+          new DeleteObjectCommand({
+            Bucket: S3_BUCKET_NAME,
+            Key: rawStorageKey,
+          }),
+        ),
+        s3.send(
+          new DeleteObjectCommand({
+            Bucket: S3_BUCKET_NAME,
+            Key: thumbnailStorageKey,
+          }),
+        ),
+      ]);
+      await db
+        .delete(videos)
+        .where(
+          and(
+            eq(videos.id, row.id),
+            eq(videos.userId, userId),
+            eq(videos.processingStatus, "uploading"),
+          ),
+        );
+    }
+    const videoId = await db.transaction(async (tx) => {
+      // Serialize quota checks for one owner to prevent concurrent URL requests from racing.
+      await tx.select({ id: user.id }).from(user).where(eq(user.id, userId)).for("update");
+      const dayStart = new Date(now);
+      dayStart.setHours(0, 0, 0, 0);
+      const [active] = await tx
+        .select({ count: sql<number>`count(*)` })
+        .from(videos)
+        .where(and(eq(videos.userId, userId), eq(videos.processingStatus, "uploading")));
+      const [daily] = await tx
+        .select({ count: sql<number>`count(*)` })
+        .from(videos)
+        .where(and(eq(videos.userId, userId), sql`${videos.createdAt} >= ${dayStart}`));
+      const [bytes] = await tx
+        .select({ total: sql<number>`coalesce(sum(${videos.rawSize}), 0)` })
+        .from(videos)
+        .where(and(eq(videos.userId, userId), sql`${videos.createdAt} >= ${dayStart}`));
+      if (Number(active?.count ?? 0) >= 3) throw new Error("Too many active uploads");
+      if (Number(daily?.count ?? 0) >= 20 || Number(bytes?.total ?? 0) >= 5 * 1024 * 1024 * 1024) {
+        throw new Error("Daily upload quota reached");
+      }
 
-    await sendVideoUploaded(videoDetails.videoId, (event) => inngest.send(event));
+      const [record] = await tx
+        .insert(videos)
+        .values({
+          videoId: null,
+          title: values.title,
+          description: values.description,
+          visibility: values.visibility,
+          duration: values.duration,
+          publicVideoId: randomBytes(16).toString("base64url"),
+          userId,
+          rawMimeType: RAW_VIDEO_CONTENT_TYPE,
+          processedMimeType: null,
+          processingStatus: "uploading",
+          thumbnailId: "pending",
+        })
+        .returning({ id: videos.id });
+      await tx
+        .update(videos)
+        .set({ thumbnailId: record.id })
+        .where(
+          and(
+            eq(videos.id, record.id),
+            eq(videos.userId, userId),
+            eq(videos.processingStatus, "uploading"),
+          ),
+        );
+      return record.id;
+    });
 
-    revalidatePaths(["/"]);
-    return { data: null };
+    const rawStorageKey = getRawVideoStorageKey(userId, videoId);
+    const thumbnailStorageKey = getThumbnailStorageKey(userId, videoId);
+
+    const [rawUploadUrl, thumbnailUploadUrl] = await Promise.all([
+      getSignedUrl(
+        s3,
+        new PutObjectCommand({
+          Bucket: S3_BUCKET_NAME,
+          Key: getVideoObjectKey(rawStorageKey),
+          ContentType: RAW_VIDEO_CONTENT_TYPE,
+          Tagging: "snappit-kind=raw",
+        }),
+        { expiresIn: 300 },
+      ),
+      getSignedUrl(
+        s3,
+        new PutObjectCommand({
+          Bucket: S3_BUCKET_NAME,
+          Key: thumbnailStorageKey,
+          ContentType: THUMBNAIL_CONTENT_TYPE,
+        }),
+        { expiresIn: 300 },
+      ),
+    ]);
+    return { data: { videoId, rawUploadUrl, thumbnailUploadUrl } };
   } catch (error) {
-    console.error("Error saving video details:", error);
-    if (error instanceof z.ZodError) {
-      return { error: error.issues[0].message };
-    }
-    if (error instanceof Error) {
-      if (error.message === "Unauthenticated") {
-        return { error: "You must be logged in to save video details." };
-      }
-      if (error.message === "Rate Limit Exceeded") {
-        return { error: "You are uploading too fast. Please try again later." };
-      }
-    }
+    console.error("Error beginning recording upload:", error);
+    if (error instanceof z.ZodError) return { error: error.issues[0].message };
+    if (error instanceof Error && error.message === "Unauthenticated")
+      return { error: "You must be logged in to upload a recording." };
+    if (error instanceof Error && /Rate Limit|quota|active uploads/i.test(error.message))
+      return {
+        error: "Upload limit reached. Please wait before starting another recording.",
+      };
     return { error: "An unexpected error occurred." };
+  }
+};
+
+export const finalizeRecordingUpload = async (input: unknown) => {
+  try {
+    const userId = await getSessionUserId();
+    await validateWithArcjet(userId);
+    const { videoId, ...values } = finalizeSchema.parse(input);
+    const [record] = await db
+      .select()
+      .from(videos)
+      .where(
+        and(
+          eq(videos.id, videoId),
+          eq(videos.userId, userId),
+          eq(videos.processingStatus, "uploading"),
+        ),
+      );
+    if (!record) return { error: "Recording not found or upload is no longer pending." };
+    const rawStorageKey = getRawVideoStorageKey(userId, videoId);
+    const thumbnailStorageKey = getThumbnailStorageKey(userId, videoId);
+    const [raw, thumbnail] = await Promise.all([
+      s3.send(
+        new HeadObjectCommand({
+          Bucket: S3_BUCKET_NAME,
+          Key: getVideoObjectKey(rawStorageKey),
+        }),
+      ),
+      s3.send(
+        new HeadObjectCommand({
+          Bucket: S3_BUCKET_NAME,
+          Key: thumbnailStorageKey,
+        }),
+      ),
+    ]);
+    if (
+      !raw.ContentLength ||
+      raw.ContentLength > MAX_VIDEO_SIZE ||
+      raw.ContentType?.split(";")[0] !== RAW_VIDEO_CONTENT_TYPE
+    ) {
+      throw new Error("Recording is missing, invalid, or exceeds the size limit");
+    }
+    if (
+      !thumbnail.ContentLength ||
+      thumbnail.ContentLength > MAX_THUMBNAIL_SIZE ||
+      thumbnail.ContentType?.split(";")[0] !== THUMBNAIL_CONTENT_TYPE
+    ) {
+      throw new Error("Recording thumbnail is missing or invalid");
+    }
+    const updated = await db.transaction(async (tx) => {
+      await tx.select({ id: user.id }).from(user).where(eq(user.id, userId)).for("update");
+      const dayStart = new Date();
+      dayStart.setHours(0, 0, 0, 0);
+      const [bytes] = await tx
+        .select({ total: sql<number>`coalesce(sum(${videos.rawSize}), 0)` })
+        .from(videos)
+        .where(and(eq(videos.userId, userId), sql`${videos.createdAt} >= ${dayStart}`));
+      if (Number(bytes?.total ?? 0) + raw.ContentLength! > 5 * 1024 * 1024 * 1024) {
+        throw new Error("Daily upload byte quota reached");
+      }
+      const [ownedPending] = await tx
+        .select({ id: videos.id })
+        .from(videos)
+        .where(
+          and(
+            eq(videos.id, videoId),
+            eq(videos.userId, userId),
+            eq(videos.processingStatus, "uploading"),
+          ),
+        );
+      if (!ownedPending) return false;
+      const [updatedRow] = await tx
+        .update(videos)
+        .set({
+          ...values,
+          rawMimeType: RAW_VIDEO_CONTENT_TYPE,
+          rawSize: raw.ContentLength,
+          processingStatus: "uploaded",
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(videos.id, videoId),
+            eq(videos.userId, userId),
+            eq(videos.processingStatus, "uploading"),
+          ),
+        )
+        .returning({ id: videos.id });
+      return !!updatedRow;
+    });
+    if (!updated) return { error: "Recording upload could not be finalized." };
+    await sendVideoUploaded(videoId, (event) => inngest.send(event));
+    revalidatePaths(["/"]);
+    return { data: { videoId } };
+  } catch (error) {
+    console.error("Error finalizing recording upload:", error);
+    if (error instanceof z.ZodError) return { error: error.issues[0].message };
+    if (error instanceof Error && error.message === "Unauthenticated")
+      return { error: "You must be logged in to finalize this recording." };
+    if (error instanceof Error && error.message.includes("Rate Limit"))
+      return { error: "You are uploading too fast. Please try again later." };
+    return { error: "The recording could not be verified. Please try again." };
   }
 };
 
 export const getVideoById = async (videoId: string) => {
   try {
-    const [videoRecord] = await buildVideoWithUserQuery().where(
-      eq(videos.videoId, videoId),
-    );
+    uuidSchema.parse(videoId);
+    const userId = await getSessionUserId();
+    const [videoRecord] = await db
+      .select({
+        video: {
+          id: videos.id,
+          title: videos.title,
+          description: videos.description,
+          views: videos.views,
+          duration: videos.duration,
+          processingStatus: videos.processingStatus,
+          processingError: videos.processingError,
+          processedMimeType: videos.processedMimeType,
+          visibility: videos.visibility,
+          publicVideoId: videos.publicVideoId,
+          createdAt: videos.createdAt,
+        },
+        user: { id: user.id, name: user.name, image: user.image },
+      })
+      .from(videos)
+      .leftJoin(user, eq(videos.userId, user.id))
+      .where(and(eq(videos.id, videoId), eq(videos.userId, userId)));
     return { data: videoRecord };
   } catch (error) {
     console.error("Error getting video by id:", error);
@@ -225,33 +353,32 @@ export const getVideoByPublicVideoId = async (publicVideoId: string) => {
   try {
     const [video] = await db
       .select({
-        videoId: videos.videoId,
-        publicVideoId: videos.publicVideoId,
+        videoId: videos.id,
         title: videos.title,
         description: videos.description,
         views: videos.views,
         duration: videos.duration,
-        rawVideoId: videos.rawVideoId,
-        processedVideoId: videos.processedVideoId,
         processedMimeType: videos.processedMimeType,
         processingStatus: videos.processingStatus,
-        processingError: videos.processingError,
         createdAt: videos.createdAt,
-        updatedAt: videos.updatedAt,
       })
       .from(videos)
-      .where(
-        and(
-          eq(videos.publicVideoId, publicVideoId),
-          eq(videos.visibility, "public"),
-        ),
-      );
+      .where(and(eq(videos.publicVideoId, publicVideoId), eq(videos.visibility, "public")));
 
     if (!video) return { data: { video: null } };
 
     return {
       data: {
-        video,
+        video: {
+          videoId: video.videoId,
+          title: video.title,
+          description: video.description,
+          views: video.views,
+          duration: video.duration,
+          processedMimeType: video.processedMimeType,
+          processingStatus: video.processingStatus,
+          createdAt: video.createdAt,
+        },
       },
     };
   } catch (error) {
@@ -262,23 +389,16 @@ export const getVideoByPublicVideoId = async (publicVideoId: string) => {
 
 export const incrementVideoViews = async (videoId: string) => {
   try {
+    uuidSchema.parse(videoId);
     await validateWithArcjet(videoId);
 
-    // Check if this is a public video ID
     const [video] = await db
-      .select({ videoId: videos.videoId })
-      .from(videos)
-      .where(eq(videos.publicVideoId, videoId));
-
-    // If not found, check if it's a regular video ID
-    const actualVideoId = video?.videoId || videoId;
-
-    await db
       .update(videos)
       .set({ views: sql`${videos.views} + 1`, updatedAt: new Date() })
-      .where(eq(videos.videoId, actualVideoId));
+      .where(and(eq(videos.id, videoId), eq(videos.visibility, "public")))
+      .returning({ publicVideoId: videos.publicVideoId });
 
-    revalidatePaths([`/video/${actualVideoId}`, `/share/${videoId}`]);
+    revalidatePaths([`/video/${videoId}`, ...(video ? [`/share/${video.publicVideoId}`] : [])]);
     return { data: {} };
   } catch (error) {
     console.error("Error incrementing video views:", error);
@@ -297,9 +417,7 @@ export const getAllVideos = async (
   pageSize: number = 8,
 ) => {
   try {
-    const currentUserId = (
-      await auth.api.getSession({ headers: await headers() })
-    )?.user.id;
+    const currentUserId = (await auth.api.getSession({ headers: await headers() }))?.user.id;
     const isOwner = userIdParameter === currentUserId;
 
     if (!isOwner) {
@@ -333,17 +451,37 @@ export const getAllVideos = async (
 
     const userVideos = await buildVideoWithUserQuery()
       .where(and(...conditions))
-      .orderBy(
-        sortFilter ? getOrderByClause(sortFilter) : desc(videos.createdAt),
-      )
+      .orderBy(sortFilter ? getOrderByClause(sortFilter) : desc(videos.createdAt))
       .limit(pageSize)
       .offset((pageNumber - 1) * pageSize);
+
+    const safeVideos = await Promise.all(
+      userVideos.map(async ({ video: row, user: owner }) => ({
+        video: {
+          id: row.id,
+          publicVideoId: row.publicVideoId,
+          title: row.title,
+          description: row.description,
+          visibility: row.visibility,
+          views: row.views,
+          duration: row.duration,
+          processingStatus: row.processingStatus,
+          processingError: row.processingError,
+          processedMimeType: row.processedMimeType,
+          createdAt: row.createdAt,
+          updatedAt: row.updatedAt,
+          userId: row.userId,
+          thumbnailUrl: await createAuthorizedThumbnailUrl(row),
+        },
+        user: owner,
+      })),
+    );
 
     return {
       data: {
         user: userInfo,
-        videos: userVideos,
-        count: userVideos.length,
+        videos: safeVideos,
+        count: safeVideos.length,
         pagination: {
           currentPage: pageNumber,
           totalPages,
@@ -358,18 +496,16 @@ export const getAllVideos = async (
   }
 };
 
-export const updateVideoVisibility = async (
-  videoId: string,
-  visibility: "public" | "private",
-) => {
+export const updateVideoVisibility = async (videoId: string, visibility: "public" | "private") => {
   try {
     const userId = await getSessionUserId();
     await validateWithArcjet(userId);
+    uuidSchema.parse(videoId);
 
     const [existing] = await db
       .select({ publicVideoId: videos.publicVideoId })
       .from(videos)
-      .where(and(eq(videos.videoId, videoId), eq(videos.userId, userId)));
+      .where(and(eq(videos.id, videoId), eq(videos.userId, userId)));
 
     if (!existing) {
       return { error: "Video not found or unauthorized." };
@@ -381,7 +517,7 @@ export const updateVideoVisibility = async (
         visibility,
         updatedAt: new Date(),
       })
-      .where(and(eq(videos.videoId, videoId), eq(videos.userId, userId)))
+      .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
       .returning({
         visibility: videos.visibility,
         publicVideoId: videos.publicVideoId,
@@ -422,12 +558,7 @@ export const updateVideoDetails = async (videoDetails: {
     const [existing] = await db
       .select({ publicVideoId: videos.publicVideoId })
       .from(videos)
-      .where(
-        and(
-          eq(videos.videoId, videoDetails.videoId),
-          eq(videos.userId, userId),
-        ),
-      );
+      .where(and(eq(videos.id, videoDetails.videoId), eq(videos.userId, userId)));
 
     if (!existing) {
       return { error: "Video not found or unauthorized." };
@@ -436,16 +567,19 @@ export const updateVideoDetails = async (videoDetails: {
     const [updatedVideo] = await db
       .update(videos)
       .set({
-        ...videoDetails,
+        title: videoDetails.title,
+        description: videoDetails.description,
+        visibility: videoDetails.visibility,
         updatedAt: new Date(),
       })
-      .where(
-        and(
-          eq(videos.videoId, videoDetails.videoId),
-          eq(videos.userId, userId),
-        ),
-      )
-      .returning();
+      .where(and(eq(videos.id, videoDetails.videoId), eq(videos.userId, userId)))
+      .returning({
+        id: videos.id,
+        title: videos.title,
+        description: videos.description,
+        visibility: videos.visibility,
+        updatedAt: videos.updatedAt,
+      });
 
     revalidatePaths(["/"]);
     return { data: updatedVideo };
@@ -469,16 +603,15 @@ export const updateVideoDetails = async (videoDetails: {
 export const deleteVideo = async (videoId: string) => {
   try {
     const userId = await getSessionUserId();
+    uuidSchema.parse(videoId);
     const [video] = await db
       .select()
       .from(videos)
-      .where(and(eq(videos.videoId, videoId), eq(videos.userId, userId)));
+      .where(and(eq(videos.id, videoId), eq(videos.userId, userId)));
     if (!video) return { error: "Video not found or unauthorized." };
-    const storageKeys = new Set([
-      video.rawVideoId ?? getRawVideoStorageKey(videoId),
-      video.processedVideoId ?? getProcessedVideoStorageKey(videoId),
-      ...(!video.rawVideoId && !video.processedVideoId ? [videoId] : []),
-    ]);
+    const storageKeys = new Set(
+      [video.rawVideoId, video.processedVideoId].filter((key): key is string => !!key),
+    );
     await Promise.all([
       ...[...storageKeys].map((storageKey) =>
         s3.send(
@@ -488,16 +621,20 @@ export const deleteVideo = async (videoId: string) => {
           }),
         ),
       ),
-      s3.send(
-        new DeleteObjectCommand({
-          Bucket: S3_BUCKET_NAME,
-          Key: `thumbnails/${video.thumbnailId}`,
-        }),
-      ),
+      ...(video.thumbnailId
+        ? [
+            s3.send(
+              new DeleteObjectCommand({
+                Bucket: S3_BUCKET_NAME,
+                Key: `thumbnails/${video.thumbnailId}`,
+              }),
+            ),
+          ]
+        : []),
     ]);
 
     // Delete from database
-    await db.delete(videos).where(eq(videos.videoId, videoId));
+    await db.delete(videos).where(and(eq(videos.id, videoId), eq(videos.userId, userId)));
     revalidatePaths(["/", `/video/${videoId}`]);
     return { data: {} };
   } catch (error) {
@@ -506,32 +643,57 @@ export const deleteVideo = async (videoId: string) => {
   }
 };
 
-export const getPlayableVideoStorageKey = async (video: PlaybackRecord) =>
-  playableVideoKey(video);
-
-export const generateSignedVideoUrl = async (storageKey: string) => {
-  return createCloudFrontVideoUrl(storageKey);
+export const generatePlaybackUrl = async (videoId: string) => {
+  try {
+    uuidSchema.parse(videoId);
+    const session = await auth.api.getSession({ headers: await headers() });
+    const access = session?.user.id
+      ? or(eq(videos.visibility, "public"), eq(videos.userId, session.user.id))
+      : eq(videos.visibility, "public");
+    const [video] = await db
+      .select()
+      .from(videos)
+      .where(and(eq(videos.id, videoId), access));
+    if (!video || video.processingStatus === "uploading") return null;
+    if (
+      video.processingStatus === "ready" &&
+      video.processedMimeType === PROCESSED_VIDEO_CONTENT_TYPE
+    ) {
+      const storageKey =
+        video.processedVideoId ?? getProcessedVideoStorageKey(video.userId, video.id);
+      if (storageKey) return createCloudFrontVideoUrl(getVideoObjectKey(storageKey));
+    }
+    const rawKey = video.rawVideoId ?? getRawVideoStorageKey(video.userId, video.id);
+    return createCloudFrontVideoUrl(getVideoObjectKey(rawKey));
+  } catch (error) {
+    console.error("Error generating playback URL:", error);
+    return null;
+  }
 };
 
 export const generateDownloadSignedUrl = async (videoId: string) => {
   try {
+    uuidSchema.parse(videoId);
+    const session = await auth.api.getSession({ headers: await headers() });
+    const access = session?.user.id
+      ? or(eq(videos.visibility, "public"), eq(videos.userId, session.user.id))
+      : eq(videos.visibility, "public");
     const [video] = await db
       .select()
       .from(videos)
-      .where(eq(videos.videoId, videoId));
-    if (!video || !canDownloadVideo(video)) throw new Error("MP4 is not ready");
-    if (
-      video.visibility !== "public" &&
-      video.userId !== (await getSessionUserId())
-    ) {
-      throw new Error("Unauthorized");
+      .where(and(eq(videos.id, videoId), access));
+    if (!video) throw new Error("Video not found");
+    if (canDownloadVideo(video)) {
+      const storageKey =
+        video.processedVideoId ?? getProcessedVideoStorageKey(video.userId, video.id);
+      if (storageKey)
+        return await createVideoDownloadUrl(storageKey, PROCESSED_VIDEO_CONTENT_TYPE, video.title);
     }
-    return await createProcessedVideoDownloadUrl(
-      video.processedVideoId!,
-      video.title,
-    );
+    if (video.processingStatus === "uploading") throw new Error("Recording upload is incomplete");
+    const rawKey = video.rawVideoId ?? getRawVideoStorageKey(video.userId, video.id);
+    return await createVideoDownloadUrl(rawKey, RAW_VIDEO_CONTENT_TYPE, video.title);
   } catch (error) {
-    console.error("Error generating S3 download URL:", error);
+    console.error("Error generating download URL:", error);
     throw new Error("Failed to generate download URL");
   }
 };

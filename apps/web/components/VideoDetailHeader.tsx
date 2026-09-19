@@ -18,13 +18,9 @@ const VideoDetailHeader = ({
 }: VideoDetailHeaderProps) => {
   const copyLink = () => {
     if (!publicVideoId) {
-      navigator.clipboard.writeText(
-        `${window.location.origin}/video/${videoId}`,
-      );
+      navigator.clipboard.writeText(`${window.location.origin}/video/${videoId}`);
     } else {
-      navigator.clipboard.writeText(
-        `${window.location.origin}/share/${publicVideoId}`,
-      );
+      navigator.clipboard.writeText(`${window.location.origin}/share/${publicVideoId}`);
     }
     toast.success("Link copied to clipboard");
   };
@@ -32,9 +28,7 @@ const VideoDetailHeader = ({
   return (
     <header className="flex items-start justify-between gap-4">
       <div className="min-w-0 flex-1">
-        <h1 className="text-2xl font-display font-bold text-foreground">
-          {title}
-        </h1>
+        <h1 className="text-2xl font-display font-bold text-foreground">{title}</h1>
         <div className="flex items-center flex-wrap gap-1 md:gap-3 mt-2 text-sm text-gray-100">
           <div className="flex gap-1 items-center">
             <ImageWithFallback
@@ -60,15 +54,8 @@ const VideoDetailHeader = ({
         <Button variant="outline" size="icon" onClick={copyLink}>
           <Copy className="h-4 w-4" />
         </Button>
-        <Badge
-          variant={publicVideoId ? "default" : "secondary"}
-          className="gap-1"
-        >
-          {publicVideoId ? (
-            <Globe className="h-3 w-3" />
-          ) : (
-            <Lock className="h-3 w-3" />
-          )}
+        <Badge variant={publicVideoId ? "default" : "secondary"} className="gap-1">
+          {publicVideoId ? <Globe className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
           {publicVideoId ? "Public" : "Private"}
         </Badge>
       </div>

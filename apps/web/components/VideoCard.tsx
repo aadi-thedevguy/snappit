@@ -30,13 +30,7 @@ const VideoCard = ({
 
   return (
     <Link href={`/video/${id}`} className="video-card">
-      <Image
-        src={thumbnail}
-        width={290}
-        height={160}
-        alt="thumbnail"
-        className="thumbnail"
-      />
+      <Image src={thumbnail} width={290} height={160} alt="thumbnail" className="thumbnail" />
       <article>
         <div>
           <figure>
@@ -67,17 +61,11 @@ const VideoCard = ({
         </h2>
       </article>
       <button onClick={handleCopy} className="copy-btn">
-        {copied ? (
-          <Check className="w-4 h-4 text-green-600" />
-        ) : (
-          <LinkIcon className="w-4 h-4" />
-        )}
+        {copied ? <Check className="w-4 h-4 text-green-600" /> : <LinkIcon className="w-4 h-4" />}
       </button>
       {duration && (
         <div className="duration">
-          {duration < 60
-            ? `00:${duration}`
-            : `${Math.floor(duration / 60)}:${duration % 60}`}
+          {duration < 60 ? `00:${duration}` : `${Math.floor(duration / 60)}:${duration % 60}`}
         </div>
       )}
     </Link>

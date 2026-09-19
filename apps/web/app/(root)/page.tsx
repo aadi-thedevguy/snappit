@@ -12,18 +12,11 @@ import Link from "next/link";
 const ProfilePage = async ({ searchParams }: ParamsWithSearch) => {
   const { query, filter, page } = await searchParams;
 
-  const currentUserId = (
-    await auth.api.getSession({ headers: await headers() })
-  )?.user.id;
+  const currentUserId = (await auth.api.getSession({ headers: await headers() }))?.user.id;
 
   if (!currentUserId) redirect("/sign-in");
 
-  const { data, error } = await getAllVideos(
-    currentUserId,
-    query,
-    filter,
-    Number(page) || 1,
-  );
+  const { data, error } = await getAllVideos(currentUserId, query, filter, Number(page) || 1);
   if (!data || error) throw new Error("Failed to fetch videos");
   const { videos, pagination, user } = data;
   if (!user) throw new Error("User not found");
@@ -37,11 +30,7 @@ const ProfilePage = async ({ searchParams }: ParamsWithSearch) => {
     description: video.video.description,
     visibility: video.video.visibility,
     views: video.video.views,
-    thumbnailId: video.video.thumbnailId,
-    videoId: video.video.videoId,
-    rawVideoId: video.video.rawVideoId,
-    rawMimeType: video.video.rawMimeType,
-    processedVideoId: video.video.processedVideoId,
+    thumbnailUrl: video.video.thumbnailUrl,
     processedMimeType: video.video.processedMimeType,
     processingStatus: video.video.processingStatus,
     processingError: video.video.processingError,

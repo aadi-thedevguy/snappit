@@ -74,9 +74,7 @@ export default function Layout({
 }>) {
   return (
     <html lang="en" className={cn("font-sans", geist.variable)}>
-      <body
-        className={`${geistKarla.variable} ${satoshi.variable} font-karla antialiased`}
-      >
+      <body className={`${geistKarla.variable} ${satoshi.variable} font-karla antialiased`}>
         <SpeedInsights />
         <Analytics />
         <Toaster richColors position="top-center" />

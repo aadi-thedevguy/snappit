@@ -25,10 +25,7 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
-export async function savePendingUpload(data: {
-  blob: Blob;
-  duration: number;
-}): Promise<void> {
+export async function savePendingUpload(data: { blob: Blob; duration: number }): Promise<void> {
   const arrayBuffer = await data.blob.arrayBuffer();
   const mimeType = data.blob.type;
 

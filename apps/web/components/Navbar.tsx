@@ -33,16 +33,9 @@ const Navbar = () => {
       <div className="w-full flex h-16 items-center justify-between px-4">
         <Link href="/" className="flex items-center gap-2.5">
           <div className="p-1.5 rounded-lg gradient-primary">
-            <Image
-              src="/assets/icons/logo.svg"
-              alt="Snappit Logo"
-              width={32}
-              height={32}
-            />
+            <Image src="/assets/icons/logo.svg" alt="Snappit Logo" width={32} height={32} />
           </div>
-          <span className="text-lg font-display font-bold text-foreground">
-            Snappit
-          </span>
+          <span className="text-lg font-display font-bold text-foreground">Snappit</span>
         </Link>
 
         <nav className="flex items-center gap-1">
@@ -54,9 +47,7 @@ const Navbar = () => {
                     <AvatarFallback className="bg-primary/10 text-gray-100 text-sm font-medium">
                       {user?.email?.charAt(0).toUpperCase() || "U"}
                     </AvatarFallback>
-                    <AvatarImage
-                      src={user?.image || "/assets/images/avatar.webp"}
-                    />
+                    <AvatarImage src={user?.image || "/assets/images/avatar.webp"} />
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>

@@ -3,11 +3,9 @@ import { notFound } from "next/navigation";
 import VideoDetailHeader from "@/components/VideoDetailHeader";
 import VideoInfo from "@/components/VideoInfo";
 import VideoPlayer from "@/components/VideoPlayer";
-import {
-  generateSignedVideoUrl,
-  getPlayableVideoStorageKey,
-  getVideoById,
-} from "@/lib/actions/video";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
+import { generatePlaybackUrl, getVideoById } from "@/lib/actions/video";
 
 const page = async ({ params }: Params) => {
   const { videoId } = await params;
@@ -16,14 +14,20 @@ const page = async ({ params }: Params) => {
   if (!videoData || error) notFound();
 
   const { user, video } = videoData;
-  const playableVideoKey = await getPlayableVideoStorageKey(video);
-  const initialSecureUrl = playableVideoKey
-    ? await generateSignedVideoUrl(playableVideoKey)
-    : undefined;
+  const initialSecureUrl = await generatePlaybackUrl(videoId);
 
   return (
     <main className="min-h-screen bg-background">
       <section className="container mx-auto max-w-6xl px-4 py-8">
+        {video.processingStatus === "uploading" && (
+          <Alert className="mb-6">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Recording upload is in progress</AlertTitle>
+            <AlertDescription>
+              Playback and download will be available after the recording finishes uploading.
+            </AlertDescription>
+          </Alert>
+        )}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-5">
             <VideoDetailHeader
@@ -31,15 +35,15 @@ const page = async ({ params }: Params) => {
               createdAt={video.createdAt}
               userImg={user?.image}
               username={user?.name}
-              videoId={video.videoId}
+              videoId={videoId}
               publicVideoId={video.visibility === "public" ? video.publicVideoId : undefined}
               views={video.views}
             />
 
             <div className="rounded-xl overflow-hidden shadow-card bg-foreground/5">
               <VideoPlayer
-                videoId={video.videoId}
-                initialSecureUrl={initialSecureUrl}
+                videoId={videoId}
+                initialSecureUrl={initialSecureUrl ?? undefined}
                 duration={video.duration ?? 0}
               />
             </div>

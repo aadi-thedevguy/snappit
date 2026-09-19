@@ -11,15 +11,28 @@ import { readConfig } from "../src/config.js";
 
 test("renderer downloads, encodes, uploads and cleans inside one attempt", async () => {
   const parent = await mkdtemp(join(tmpdir(), "snappit-test-"));
-  const config = readConfig({ DATABASE_URL: "postgresql://test@localhost/test", S3_BUCKET_NAME: "test", AWS_REGION: "us-east-1", APP_VERSION: "test", INNGEST_DEV: "1", MEDIA_TEMP_DIRECTORY: parent });
+  const config = readConfig({
+    DATABASE_URL: "postgresql://test@localhost/test",
+    S3_BUCKET_NAME: "test",
+    AWS_REGION: "us-east-1",
+    APP_VERSION: "test",
+    INNGEST_DEV: "1",
+    MEDIA_TEMP_DIRECTORY: parent,
+  });
   const calls: string[] = [];
-  const client = { config: {}, send: async (command: GetObjectCommand) => {
-    assert.ok(command instanceof GetObjectCommand);
-    assert.equal(command.input.Key, "videos/raw/video-1.webm");
-    calls.push("download");
-    return { ContentLength: 4, Body: Readable.from(Buffer.from("webm")) };
-  } } as unknown as S3Client;
-  const upload = mock.method(Upload.prototype, "done", async () => { calls.push("upload"); return {}; });
+  const client = {
+    config: {},
+    send: async (command: GetObjectCommand) => {
+      assert.ok(command instanceof GetObjectCommand);
+      assert.equal(command.input.Key, "videos/raw/video-1.webm");
+      calls.push("download");
+      return { ContentLength: 4, Body: Readable.from(Buffer.from("webm")) };
+    },
+  } as unknown as S3Client;
+  const upload = mock.method(Upload.prototype, "done", async () => {
+    calls.push("upload");
+    return {};
+  });
   let inputPath = "";
   const encode = async (input: string, output: string) => {
     inputPath = input;
@@ -34,8 +47,13 @@ test("renderer downloads, encodes, uploads and cleans inside one attempt", async
     assert.deepEqual(calls, ["download", "encode", "upload"]);
     await assert.rejects(access(inputPath));
     assert.deepEqual(await readdir(parent), []);
-    upload.mock.mockImplementation(async () => { throw new Error("S3 unavailable"); });
+    upload.mock.mockImplementation(async () => {
+      throw new Error("S3 unavailable");
+    });
     await assert.rejects(render("raw/video-1.webm", "processed/video-1.mp4"), /S3 unavailable/);
     assert.deepEqual(await readdir(parent), []);
-  } finally { upload.mock.restore(); await rm(parent, { recursive: true, force: true }); }
+  } finally {
+    upload.mock.restore();
+    await rm(parent, { recursive: true, force: true });
+  }
 });

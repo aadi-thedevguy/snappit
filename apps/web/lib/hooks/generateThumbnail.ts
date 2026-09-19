@@ -2,10 +2,7 @@
  * Generates a thumbnail image from a video file by capturing a frame at 1 second.
  * Returns a Blob (JPEG) or null if it fails.
  */
-export function generateThumbnail(
-  videoFile: File | Blob,
-  timeInSeconds = 1,
-): Promise<Blob | null> {
+export function generateThumbnail(videoFile: File | Blob, timeInSeconds = 1): Promise<Blob | null> {
   return new Promise((resolve) => {
     const video = document.createElement("video");
     video.preload = "auto";
@@ -16,19 +13,14 @@ export function generateThumbnail(
     video.src = url;
 
     video.onloadeddata = () => {
-      video.currentTime = Math.min(
-        timeInSeconds,
-        video.duration * 0.1 || timeInSeconds,
-      );
+      video.currentTime = Math.min(timeInSeconds, video.duration * 0.1 || timeInSeconds);
     };
 
     video.onseeked = () => {
       try {
         const canvas = document.createElement("canvas");
         canvas.width = Math.min(video.videoWidth, 1280);
-        canvas.height = Math.round(
-          canvas.width * (video.videoHeight / video.videoWidth),
-        );
+        canvas.height = Math.round(canvas.width * (video.videoHeight / video.videoWidth));
         const ctx = canvas.getContext("2d");
         if (!ctx) {
           resolve(null);
