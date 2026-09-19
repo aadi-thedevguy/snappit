@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1789817356145,
+      "tag": "0000_curly_la_nuit",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789822251949,
+      "tag": "0001_derive_media_keys",
+      "breakpoints": true
+    }
+  ]
+}

@@ -1,0 +1,214 @@
+"use client";
+import ImageWithFallback from "@/components/ImageWithFallback";
+import { DEFAULT_VIDEO_THUMBNAIL_URL } from "@/constants";
+import Link from "next/link";
+import {
+  Clock,
+  Eye,
+  Globe,
+  LinkIcon,
+  Lock,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  AlertTriangle,
+  Download,
+} from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { formatDuration } from "@/lib/utils";
+import { useState } from "react";
+import { EditDialog, ShareDialog, DeleteDialog } from "./VideoDialogs";
+import { generateDownloadSignedUrl } from "@/lib/actions/video";
+
+import { canDownloadVideo } from "@/lib/utils";
+
+type VideoType = {
+  id: string;
+  title: string;
+  description: string;
+  visibility: "public" | "private";
+  views: number;
+  duration: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+  processingStatus: "uploading" | "uploaded" | "processing" | "ready" | "failed";
+  processingError: string | null;
+  processedMimeType: string | null;
+  publicVideoId: string;
+  userId: string;
+  thumbnailUrl: string | null;
+};
+
+const VideoGrid = ({ videos }: { videos: VideoType[] }) => {
+  const [editRecording, setEditRecording] = useState<VideoType | null>(null);
+  const [deleteRecording, setDeleteRecording] = useState({
+    id: "",
+  });
+  const [shareRecording, setShareRecording] = useState<VideoType | null>(null);
+
+  return (
+    <div className="space-y-6">
+      <Alert variant="default" className="bg-amber-500/10 text-amber-500 border-amber-500/20">
+        <AlertTriangle className="h-4 w-4 stroke-amber-500" />
+        <AlertTitle>Notice</AlertTitle>
+        <AlertDescription>
+          Snappit only keeps your videos in the cloud for a month. If you want it to be permanent,
+          kindly download the video.
+        </AlertDescription>
+      </Alert>
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {videos?.map((video) => (
+          <VideoCard
+            key={video.id}
+            recording={video}
+            onEdit={() => setEditRecording(video)}
+            onDelete={() =>
+              setDeleteRecording({
+                id: video.id,
+              })
+            }
+            onShare={() => setShareRecording(video)}
+          />
+        ))}
+        {editRecording && (
+          <EditDialog recording={editRecording} onClose={() => setEditRecording(null)} />
+        )}
+        {deleteRecording.id && (
+          <DeleteDialog
+            {...deleteRecording}
+            onClose={() =>
+              setDeleteRecording({
+                id: "",
+              })
+            }
+          />
+        )}
+        {shareRecording && (
+          <ShareDialog recording={shareRecording} onClose={() => setShareRecording(null)} />
+        )}
+      </section>
+    </div>
+  );
+};
+
+export default VideoGrid;
+
+function VideoCard({
+  recording,
+  onEdit,
+  onDelete,
+  onShare,
+}: {
+  recording: VideoType;
+  onEdit: () => void;
+  onDelete: () => void;
+  onShare: () => void;
+}) {
+  const handleDownload = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      if (!canDownloadVideo(recording)) {
+        return;
+      }
+
+      const signedUrl = await generateDownloadSignedUrl(recording.id);
+
+      const a = document.createElement("a");
+      a.href = signedUrl;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Download failed:", error);
+    }
+  };
+
+  return (
+    <Card className="group shadow-card hover:shadow-elegant transition-all duration-300 overflow-hidden border-border">
+      <Link href={`/video/${recording.id}`}>
+        <div className="aspect-video bg-muted relative overflow-hidden">
+          <ImageWithFallback
+            src={recording.thumbnailUrl || DEFAULT_VIDEO_THUMBNAIL_URL}
+            fallback={DEFAULT_VIDEO_THUMBNAIL_URL}
+            alt={recording.title}
+            width={300}
+            height={200}
+            unoptimized
+            className="w-full h-full object-cover"
+          />
+          {/* Duration badge */}
+          {recording.duration && (
+            <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-foreground/80 text-background text-xs font-medium flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {formatDuration(recording.duration)}
+            </div>
+          )}
+          {/* Visibility badge */}
+          <div className="absolute top-2 left-2">
+            <Badge
+              variant={recording.visibility === "public" ? "default" : "secondary"}
+              className="text-xs gap-1 capitalize"
+            >
+              {recording.visibility === "public" ? (
+                <Globe className="h-3 w-3" />
+              ) : (
+                <Lock className="h-3 w-3" />
+              )}
+              {recording.visibility}
+            </Badge>
+          </div>
+        </div>
+      </Link>
+
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-medium text-foreground truncate">{recording.title}</h3>
+            <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+              <Eye className="h-3 w-3" />
+              {recording.views}
+            </div>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={onShare} className="text-gray-100">
+                <LinkIcon className="mr-2 h-4 w-4" /> Share
+              </DropdownMenuItem>
+              {canDownloadVideo(recording) && (
+                <DropdownMenuItem onClick={handleDownload} className="text-gray-100">
+                  <Download className="mr-2 h-4 w-4" /> Download video
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onClick={onEdit} className="text-sky-100">
+                <Pencil className="mr-2 h-4 w-4" /> Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onDelete} className="text-destructive">
+                <Trash2 className="mr-2 h-4 w-4" /> Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

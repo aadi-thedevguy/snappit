@@ -1,12 +1,12 @@
 /* ScreenCap Chrome Extension - Popup Logic */
 
-const APP_URL = 'https://snappit.adityakhare.com';
+const APP_URL = "https://snappit.adityakhare.com";
 const $ = (id) => document.getElementById(id);
 
 function showView(name) {
-  ['loading', 'unauth', 'idle', 'recording'].forEach((v) => {
-    const el = $(v + '-view');
-    if (el) el.classList.toggle('hidden', v !== name);
+  ["loading", "unauth", "idle", "recording"].forEach((v) => {
+    const el = $(v + "-view");
+    if (el) el.classList.toggle("hidden", v !== name);
   });
 }
 
@@ -14,11 +14,9 @@ async function checkAuth() {
   try {
     // Get all cookies for the app domain
     const cookies = await chrome.cookies.getAll({ url: APP_URL });
-    
+
     // Find the better-auth session cookie (handles dev and prod __Secure- prefixes)
-    const sessionCookie = cookies.find((c) =>
-      c.name.includes("better-auth.session_token")
-    );
+    const sessionCookie = cookies.find((c) => c.name.includes("better-auth.session_token"));
 
     if (!sessionCookie) return false;
 
@@ -33,8 +31,8 @@ async function checkAuth() {
       const data = await res.json();
       if (data?.session?.userId || data?.user) {
         const user = data.user || data.session.user;
-        $('userName').textContent = user.name || 'User';
-        $('userEmail').textContent = user.email || '';
+        $("userName").textContent = user.name || "User";
+        $("userEmail").textContent = user.email || "";
         return true;
       }
     }
@@ -44,42 +42,42 @@ async function checkAuth() {
   return false;
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
-  showView('loading');
+document.addEventListener("DOMContentLoaded", async () => {
+  showView("loading");
   const isLoggedIn = await checkAuth();
-  
+
   if (!isLoggedIn) {
-    showView('unauth');
+    showView("unauth");
     return;
   }
 
-  chrome.runtime.sendMessage({ action: 'get-status' }, (res) => {
+  chrome.runtime.sendMessage({ action: "get-status" }, (res) => {
     if (!res) return;
-    if (res.state === 'recording') {
-      showView('recording');
+    if (res.state === "recording") {
+      showView("recording");
     } else {
-      showView('idle');
+      showView("idle");
     }
   });
 });
 
-$('signInBtn')?.addEventListener('click', () => {
-  chrome.tabs.create({ url: APP_URL + '/sign-in' });
+$("signInBtn")?.addEventListener("click", () => {
+  chrome.tabs.create({ url: APP_URL + "/sign-in" });
 });
 
-$('startBtn')?.addEventListener('click', () => {
-  chrome.runtime.sendMessage({ action: 'start-recording' }, (res) => {
+$("startBtn")?.addEventListener("click", () => {
+  chrome.runtime.sendMessage({ action: "start-recording" }, (res) => {
     if (res?.ok) {
-      showView('recording');
+      showView("recording");
     } else {
-      alert('Failed to start recording: ' + (res?.error || 'Unknown error'));
-      showView('idle');
+      alert("Failed to start recording: " + (res?.error || "Unknown error"));
+      showView("idle");
     }
   });
 });
 
-$('stopBtn')?.addEventListener('click', () => {
-  chrome.runtime.sendMessage({ action: 'stop-recording' }, () => {
+$("stopBtn")?.addEventListener("click", () => {
+  chrome.runtime.sendMessage({ action: "stop-recording" }, () => {
     window.close(); // Close the extension popup window after invoking stop
   });
 });

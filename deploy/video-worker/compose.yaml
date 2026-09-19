@@ -1,0 +1,31 @@
+services:
+  video-worker:
+    image: ${VIDEO_WORKER_IMAGE:-snappit-video-worker:local}
+    build:
+      context: ../..
+      dockerfile: apps/video-worker/Dockerfile
+    init: true
+    restart: unless-stopped
+    env_file:
+      - ${WORKER_ENV_FILE:-.env.worker}
+    environment:
+      APP_VERSION: ${APP_VERSION:?Set APP_VERSION to the image tag or Git SHA}
+      WORKER_INSTANCE_ID: ${WORKER_INSTANCE_ID:-snappit-vps-1}
+    volumes:
+      - snappit-video-worker-media:/var/tmp/snappit-media
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:'+(process.env.HEALTH_PORT||8080)+'/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 15s
+    stop_grace_period: 45m
+
+volumes:
+  snappit-video-worker-media:

@@ -1,0 +1,33 @@
+{
+  "name": "@snappit/video-worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22.4.0"
+  },
+  "scripts": {
+    "dev": "node --env-file=.env --import tsx src/worker.ts",
+    "build": "pnpm --filter '@snappit/video-worker^...' build && tsc -p tsconfig.json",
+    "start": "node dist/worker.js",
+    "typecheck": "tsc -p tsconfig.check.json"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1009.0",
+    "@aws-sdk/lib-storage": "^3.1009.0",
+    "@snappit/db": "workspace:*",
+    "@snappit/inngest": "workspace:*",
+    "@snappit/validation": "workspace:*",
+    "@snappit/video-storage": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "execa": "^9.6.1",
+    "inngest": "^4.20.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.3"
+  }
+}
