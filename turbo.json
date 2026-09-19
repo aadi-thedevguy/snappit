@@ -20,8 +20,7 @@
         "GOOGLE_CLIENT_ID",
         "GOOGLE_CLIENT_SECRET",
         "INNGEST_EVENT_KEY",
-        "INNGEST_ENV",
-        "INNGEST_DEV"
+        "INNGEST_SIGNING_KEY"
       ]
     },
     "dev": {
