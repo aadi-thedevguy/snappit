@@ -19,8 +19,7 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "migrate:storage": "pnpm --filter @snappit/web exec node scripts/migrate-video-storage.js"
+    "db:migrate": "drizzle-kit migrate"
   },
   "devDependencies": {
     "dotenv": "^17.4.2",

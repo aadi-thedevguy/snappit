@@ -74,10 +74,10 @@ export const videos = createTable(
     title: text("title").notNull(),
     description: text("description").notNull(),
     videoId: text("video_id"),
-    rawVideoId: text("raw_video_id"),
+    // Retained for the older app; new media paths are derived from owner and UUID.
+    thumbnailId: text("thumbnail_id"),
     rawMimeType: text("raw_mime_type"),
     rawSize: integer("raw_size"),
-    processedVideoId: text("processed_video_id"),
     processedMimeType: text("processed_mime_type"),
     processingStatus: text("processing_status")
       .$type<"uploading" | "uploaded" | "processing" | "ready" | "failed">()
@@ -85,7 +85,6 @@ export const videos = createTable(
       .default("ready"),
     processingError: text("processing_error"),
     processingRunId: text("processing_run_id"),
-    thumbnailId: text("thumbnail_id").notNull(),
     visibility: text("visibility").$type<"public" | "private">().notNull(),
     userId: text("user_id")
       .notNull()

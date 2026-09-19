@@ -4,10 +4,7 @@ const optionalText = z.preprocess((v) => (v === "" ? undefined : v), z.string().
 const schema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-    DATABASE_URL: z
-      .string()
-      .url()
-      .refine((v) => /^postgres(ql)?:/.test(v)),
+    DATABASE_URL: z.url().refine((v) => /^postgres(ql)?:/.test(v)),
     DATABASE_SSL: z.enum(["disable", "require", "verify-full"]).default("verify-full"),
     DATABASE_POOL_SIZE: z.coerce.number().int().min(1).max(10).default(2),
     INNGEST_DEV: z.enum(["0", "1"]).default("0"),
@@ -16,7 +13,7 @@ const schema = z
     INNGEST_EVENT_KEY: optionalText,
     S3_BUCKET_NAME: z.string().min(1),
     AWS_REGION: z.string().min(1),
-    S3_ENDPOINT: z.preprocess((v) => (v === "" ? undefined : v), z.string().url().optional()),
+    S3_ENDPOINT: z.preprocess((v) => (v === "" ? undefined : v), z.url().optional()),
     AWS_ACCESS_KEY_ID: optionalText,
     AWS_SECRET_ACCESS_KEY: optionalText,
     APP_VERSION: z.string().min(1),

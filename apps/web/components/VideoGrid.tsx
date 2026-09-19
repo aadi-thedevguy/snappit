@@ -1,5 +1,6 @@
 "use client";
-import Image from "next/image";
+import ImageWithFallback from "@/components/ImageWithFallback";
+import { DEFAULT_VIDEO_THUMBNAIL_URL } from "@/constants";
 import Link from "next/link";
 import {
   Clock,
@@ -7,7 +8,6 @@ import {
   Globe,
   LinkIcon,
   Lock,
-  Monitor,
   MoreVertical,
   Pencil,
   Trash2,
@@ -138,20 +138,15 @@ function VideoCard({
     <Card className="group shadow-card hover:shadow-elegant transition-all duration-300 overflow-hidden border-border">
       <Link href={`/video/${recording.id}`}>
         <div className="aspect-video bg-muted relative overflow-hidden">
-          {recording.thumbnailUrl ? (
-            <Image
-              src={recording.thumbnailUrl}
-              alt={recording.title}
-              width={300}
-              height={200}
-              unoptimized
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center gradient-primary opacity-20">
-              <Monitor className="h-12 w-12 text-primary" />
-            </div>
-          )}
+          <ImageWithFallback
+            src={recording.thumbnailUrl || DEFAULT_VIDEO_THUMBNAIL_URL}
+            fallback={DEFAULT_VIDEO_THUMBNAIL_URL}
+            alt={recording.title}
+            width={300}
+            height={200}
+            unoptimized
+            className="w-full h-full object-cover"
+          />
           {/* Duration badge */}
           {recording.duration && (
             <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-foreground/80 text-background text-xs font-medium flex items-center gap-1">

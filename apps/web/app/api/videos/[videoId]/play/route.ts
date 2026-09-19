@@ -44,7 +44,7 @@ export async function GET(
       video.processedMimeType === PROCESSED_VIDEO_CONTENT_TYPE
     ) {
       const processedKey =
-        video.processedVideoId ?? getProcessedVideoStorageKey(video.userId, video.id);
+        getProcessedVideoStorageKey(video.userId, video.id);
       return NextResponse.json({
         signedUrl: createCloudFrontVideoUrl(getVideoObjectKey(processedKey)),
         contentType: PROCESSED_VIDEO_CONTENT_TYPE,
@@ -55,7 +55,7 @@ export async function GET(
       video.processingStatus === "uploaded" ||
       video.processingStatus === "processing"
     ) {
-      const rawKey = video.rawVideoId ?? getRawVideoStorageKey(video.userId, video.id);
+      const rawKey = getRawVideoStorageKey(video.userId, video.id);
       return NextResponse.json({
         signedUrl: createCloudFrontVideoUrl(getVideoObjectKey(rawKey)),
         contentType: "video/webm",

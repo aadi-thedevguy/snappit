@@ -23,10 +23,7 @@ export async function GET(
   const session = await auth.api.getSession({ headers: await headers() });
   if (video.visibility !== "public" && video.userId !== session?.user.id)
     return new NextResponse(null, { status: 404 });
-  const key = video.thumbnailId
-    ? `thumbnails/${video.thumbnailId}`
-    : getThumbnailStorageKey(video.userId, video.id);
-  if (!key) return new NextResponse(null, { status: 404 });
+  const key = getThumbnailStorageKey(video.userId, video.id);
   const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: S3_BUCKET_NAME, Key: key }), {
     expiresIn: 300,
   });

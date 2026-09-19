@@ -111,10 +111,14 @@ export default function UploadPage() {
   };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    if (!recording || !thumbnail) {
+    if (!recording) {
       form.setError("root", {
         message: "No recording is ready to upload. Record a video first.",
       });
+      return;
+    }
+    if (!thumbnail) {
+      form.setError("root", { message: "Choose a JPEG thumbnail before saving your recording." });
       return;
     }
     try {
@@ -263,7 +267,7 @@ export default function UploadPage() {
             </div>
             <Button
               type="submit"
-              disabled={form.formState.isSubmitting || !thumbnail}
+              disabled={form.formState.isSubmitting || !recording || !thumbnail}
               className="w-full gap-2 rounded-full bg-sky-100 px-3 py-6 hover:bg-sky-100/80"
               size="lg"
             >

@@ -1,5 +1,7 @@
 "use server";
 
+import { MAX_THUMBNAIL_SIZE } from "@/constants";
+
 import { DeleteObjectCommand, HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { randomBytes } from "node:crypto";
 
@@ -31,8 +33,6 @@ import {
   s3,
 } from "@/lib/storage/videoStorage";
 
-import { canDownloadVideo } from "@/lib/utils";
-import { MAX_THUMBNAIL_SIZE } from "@/constants";
 
 const finalizeSchema = formSchema.extend({ videoId: z.uuid() });
 const uuidSchema = z.uuid();
@@ -152,7 +152,6 @@ export const beginRecordingUpload = async (input: unknown) => {
       const [record] = await tx
         .insert(videos)
         .values({
-          videoId: null,
           title: values.title,
           description: values.description,
           visibility: values.visibility,
@@ -162,19 +161,8 @@ export const beginRecordingUpload = async (input: unknown) => {
           rawMimeType: RAW_VIDEO_CONTENT_TYPE,
           processedMimeType: null,
           processingStatus: "uploading",
-          thumbnailId: "pending",
         })
         .returning({ id: videos.id });
-      await tx
-        .update(videos)
-        .set({ thumbnailId: record.id })
-        .where(
-          and(
-            eq(videos.id, record.id),
-            eq(videos.userId, userId),
-            eq(videos.processingStatus, "uploading"),
-          ),
-        );
       return record.id;
     });
 
@@ -260,7 +248,7 @@ export const finalizeRecordingUpload = async (input: unknown) => {
       thumbnail.ContentLength > MAX_THUMBNAIL_SIZE ||
       thumbnail.ContentType?.split(";")[0] !== THUMBNAIL_CONTENT_TYPE
     ) {
-      throw new Error("Recording thumbnail is missing or invalid");
+      throw new Error("Recording thumbnail is missing, invalid, or exceeds the size limit");
     }
     const updated = await db.transaction(async (tx) => {
       await tx.select({ id: user.id }).from(user).where(eq(user.id, userId)).for("update");
@@ -609,29 +597,16 @@ export const deleteVideo = async (videoId: string) => {
       .from(videos)
       .where(and(eq(videos.id, videoId), eq(videos.userId, userId)));
     if (!video) return { error: "Video not found or unauthorized." };
-    const storageKeys = new Set(
-      [video.rawVideoId, video.processedVideoId].filter((key): key is string => !!key),
-    );
-    await Promise.all([
-      ...[...storageKeys].map((storageKey) =>
-        s3.send(
-          new DeleteObjectCommand({
-            Bucket: S3_BUCKET_NAME,
-            Key: getVideoObjectKey(storageKey),
-          }),
-        ),
+    const storageKeys = [
+      getRawVideoStorageKey(video.userId, video.id),
+      getProcessedVideoStorageKey(video.userId, video.id),
+      getThumbnailStorageKey(video.userId, video.id),
+    ];
+    await Promise.all(
+      storageKeys.map((key) =>
+        s3.send(new DeleteObjectCommand({ Bucket: S3_BUCKET_NAME, Key: key })),
       ),
-      ...(video.thumbnailId
-        ? [
-            s3.send(
-              new DeleteObjectCommand({
-                Bucket: S3_BUCKET_NAME,
-                Key: `thumbnails/${video.thumbnailId}`,
-              }),
-            ),
-          ]
-        : []),
-    ]);
+    );
 
     // Delete from database
     await db.delete(videos).where(and(eq(videos.id, videoId), eq(videos.userId, userId)));
@@ -660,10 +635,10 @@ export const generatePlaybackUrl = async (videoId: string) => {
       video.processedMimeType === PROCESSED_VIDEO_CONTENT_TYPE
     ) {
       const storageKey =
-        video.processedVideoId ?? getProcessedVideoStorageKey(video.userId, video.id);
+        getProcessedVideoStorageKey(video.userId, video.id);
       if (storageKey) return createCloudFrontVideoUrl(getVideoObjectKey(storageKey));
     }
-    const rawKey = video.rawVideoId ?? getRawVideoStorageKey(video.userId, video.id);
+    const rawKey = getRawVideoStorageKey(video.userId, video.id);
     return createCloudFrontVideoUrl(getVideoObjectKey(rawKey));
   } catch (error) {
     console.error("Error generating playback URL:", error);
@@ -683,14 +658,17 @@ export const generateDownloadSignedUrl = async (videoId: string) => {
       .from(videos)
       .where(and(eq(videos.id, videoId), access));
     if (!video) throw new Error("Video not found");
-    if (canDownloadVideo(video)) {
+    if (
+      video.processingStatus === "ready" &&
+      video.processedMimeType === PROCESSED_VIDEO_CONTENT_TYPE
+    ) {
       const storageKey =
-        video.processedVideoId ?? getProcessedVideoStorageKey(video.userId, video.id);
+        getProcessedVideoStorageKey(video.userId, video.id);
       if (storageKey)
         return await createVideoDownloadUrl(storageKey, PROCESSED_VIDEO_CONTENT_TYPE, video.title);
     }
     if (video.processingStatus === "uploading") throw new Error("Recording upload is incomplete");
-    const rawKey = video.rawVideoId ?? getRawVideoStorageKey(video.userId, video.id);
+    const rawKey = getRawVideoStorageKey(video.userId, video.id);
     return await createVideoDownloadUrl(rawKey, RAW_VIDEO_CONTENT_TYPE, video.title);
   } catch (error) {
     console.error("Error generating download URL:", error);

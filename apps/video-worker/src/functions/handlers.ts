@@ -1,19 +1,17 @@
 import { NonRetriableError } from "inngest";
 import { uploadedVideoEvent } from "@snappit/validation";
-import { getProcessedVideoStorageKey } from "@snappit/video-storage/keys";
+import { getProcessedVideoStorageKey, getRawVideoStorageKey } from "@snappit/video-storage/keys";
 
 export type ClaimedVideo = {
   id: string;
   userId: string;
-  rawVideoId: string;
-  processedVideoId: string | null;
   processingStatus: string;
   alreadyReady: boolean;
   runId: string;
 };
 export interface VideoRepository {
   claim(videoId: string, runId: string): Promise<ClaimedVideo | undefined>;
-  ready(video: ClaimedVideo, key: string): Promise<boolean>;
+  ready(video: ClaimedVideo): Promise<boolean>;
   fail(videoId: string, runId: string): Promise<void>;
 }
 export interface Steps {
@@ -54,23 +52,21 @@ export function createHandlers({ repository, render }: ProcessingServices) {
           throw new NonRetriableError("Recording upload is not finalized");
         return claimed;
       });
-      if (video.alreadyReady) return { videoId, processedVideoId: video.processedVideoId };
-      const rawKey = video.rawVideoId;
       const processedKey = getProcessedVideoStorageKey(video.userId, video.id);
+      if (video.alreadyReady) return { videoId, processedKey };
+      const rawKey = getRawVideoStorageKey(video.userId, video.id);
       logger.info("Processing uploaded video", { videoId });
       // All machine-local paths remain inside this one step, including cleanup.
       const rendered = await step.run("transcode-and-upload-mp4", () =>
         render(rawKey, processedKey),
       );
-      const updated = await step.run("mark-ready", () =>
-        repository.ready(video, rendered.storageKey),
-      );
+      const updated = await step.run("mark-ready", () => repository.ready(video));
       logger.info("Video processing complete", {
         videoId,
         renderTimeMs: rendered.renderTimeMs,
         updated,
       });
-      return { videoId, processedVideoId: rendered.storageKey };
+      return { videoId, processedKey: rendered.storageKey };
     },
     async failure({
       event,

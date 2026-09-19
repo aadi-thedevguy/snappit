@@ -16,7 +16,9 @@ export function createVideoRepository(db: Database): VideoRepository {
           .where(eq(videos.id, videoId))
           .for("update");
         if (!existing) return;
-        const alreadyReady = existing.processingStatus === "ready" && !!existing.processedVideoId;
+        const alreadyReady =
+          existing.processingStatus === "ready" &&
+          existing.processedMimeType === PROCESSED_VIDEO_CONTENT_TYPE;
         if (
           !alreadyReady &&
           existing.processingStatus === "processing" &&
@@ -41,19 +43,16 @@ export function createVideoRepository(db: Database): VideoRepository {
         return {
           id: existing.id,
           userId: existing.userId,
-          rawVideoId: `${existing.userId}/videos/raw/${existing.id}.webm`,
-          processedVideoId: existing.processedVideoId,
           processingStatus: existing.processingStatus,
           alreadyReady,
           runId,
         };
       });
     },
-    async ready(video, key) {
+    async ready(video) {
       const updated = await db
         .update(videos)
         .set({
-          processedVideoId: key,
           processedMimeType: PROCESSED_VIDEO_CONTENT_TYPE,
           processingStatus: "ready",
           processingError: null,
