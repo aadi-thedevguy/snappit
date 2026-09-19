@@ -58,8 +58,6 @@ The Next.js app sends events from Vercel. It does not run Inngest Connect. The v
 
 The web app lives in `apps/web`, the worker in `apps/video-worker`, and shared database, event, validation and storage code in `packages`. The Chrome extension remains in `extension`.
 
-Read [video worker operations](docs/video-worker.md) for local development, the additive database prerequisite, Vercel root settings, VPS deployment, environment variables, cutover and rollback. Production migrations should follow your established Drizzle history; use `db:push` below only for a fresh development database.
-
 ## 🚀 Getting Started
 
 ### Prerequisites
@@ -106,8 +104,6 @@ pnpm db:generate
 # apply pending SQL migrations once
 pnpm db:migrate
 ```
-
-`drizzle-kit migrate` creates the `__drizzle_migrations` bookkeeping table if it does not exist, then records each applied migration in it. PostgreSQL may print `42P07 relation "__drizzle_migrations" already exists, skipping` as a `NOTICE` when that table is already present. This is informational and means the bookkeeping table is being reused; it is not an error. A successful run continues with `migrations applied` or exits with code 0. Do not delete this table or rerun old SQL manually. If a migration fails, fix the SQL or database state, then rerun `pnpm db:migrate`; completed migrations are skipped using the journal.
 
 The repository's `drizzle.config.ts` loads `apps/web/.env`, so `DATABASE_URL` must point to the intended database before running these commands. Review generated SQL before applying it, especially changes involving existing production columns or data.
 
