@@ -3,6 +3,12 @@ import { twMerge } from "tailwind-merge";
 import { ilike, sql } from "drizzle-orm";
 import { videos } from "@/drizzle/schema";
 import z from "zod";
+import { randomInt } from "node:crypto";
+import {
+  PUBLIC_VIDEO_ID_ALPHABET,
+  PUBLIC_VIDEO_ID_LENGTH,
+  PUBLIC_VIDEO_ID_MAX_ATTEMPTS,
+} from "@/constants";
 
 export const formSchema = z.object({
   title: z
@@ -136,10 +142,52 @@ export const formatPrivateKey = (rawKey: string) => {
   return `${header}\n${chunks.join("\n")}\n${footer}`;
 };
 
-export function canDownloadVideo(video: {
-  processingStatus?: string | null;
-}): boolean {
-  return (
-    video?.processingStatus !== "uploading"
-  );
+export function canDownloadVideo(video: { processingStatus?: string | null }): boolean {
+  return video?.processingStatus !== "uploading";
+}
+
+export function createDefaultRecordingTitle(date = new Date()): string {
+  return `Snappit - ${date.toLocaleString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })}`;
+}
+
+export function formatVideoDownloadFilename(title: string, extension: "mp4" | "webm"): string {
+  let basename = title
+    .normalize("NFKC")
+    .replace(/\.(mp4|webm)$/i, "")
+    .replace(/[^\p{L}\p{N}_-]+/gu, "-")
+    .replace(/-+/g, "-")
+    .replace(/^[-_]+|[-_]+$/g, "");
+  basename =
+    Array.from(basename)
+      .slice(0, 120)
+      .join("")
+      .replace(/[-_]+$/g, "") || "video";
+  // Reserved device names cannot be used as filenames on Windows.
+  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(basename)) basename += "-video";
+  return `${basename}.${extension}`;
+}
+
+export function generatePublicVideoId(): string {
+  return Array.from(
+    { length: PUBLIC_VIDEO_ID_LENGTH },
+    () => PUBLIC_VIDEO_ID_ALPHABET[randomInt(PUBLIC_VIDEO_ID_ALPHABET.length)],
+  ).join("");
+}
+
+// The insert must use ON CONFLICT on public_video_id, so a collision does not
+// abort the surrounding transaction or race with another user's insert.
+export async function insertWithPublicVideoId<T>(
+  insert: (publicVideoId: string) => Promise<T | undefined>,
+): Promise<T> {
+  for (let attempt = 0; attempt < PUBLIC_VIDEO_ID_MAX_ATTEMPTS; attempt++) {
+    const record = await insert(generatePublicVideoId());
+    if (record !== undefined) return record;
+  }
+  throw new Error("Could not generate a unique share link. Please try again.");
 }

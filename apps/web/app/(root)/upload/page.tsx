@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 import { AlertCircleIcon, ImageIcon, Monitor, Video } from "lucide-react";
 import { toast } from "sonner";
 import { beginRecordingUpload, finalizeRecordingUpload } from "@/lib/actions/video";
-import { MAX_THUMBNAIL_SIZE } from "@/constants";
+import { DEFAULT_RECORDING_DESCRIPTION, MAX_THUMBNAIL_SIZE } from "@/constants";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -18,25 +18,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
-import { clearPendingUpload, getPendingUpload } from "@/lib/hooks/videoStore";
+import {
+  clearPendingUpload,
+  getPendingUpload,
+  setPendingUploadVideoId,
+} from "@/lib/hooks/videoStore";
+import { uploadRecordingFiles } from "@/lib/storage/uploadRecordingFiles";
 import { generateThumbnail } from "@/lib/hooks/generateThumbnail";
+import { createDefaultRecordingTitle } from "@/lib/utils";
 import { formSchema } from "@/lib/utils";
-
-async function putFile(file: Blob, uploadUrl: string, contentType: string, tagging?: string) {
-  const response = await fetch(uploadUrl, {
-    method: "PUT",
-    headers: {
-      "Content-Type": contentType,
-      ...(tagging ? { "x-amz-tagging": tagging } : {}),
-    },
-    body: file,
-  });
-  if (!response.ok) throw new Error(`Upload failed with status ${response.status}`);
-}
 
 export default function UploadPage() {
   const router = useRouter();
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
+  const pendingVideoIdRef = useRef<string | undefined>(undefined);
   const [recording, setRecording] = useState<File | null>(null);
   const [thumbnail, setThumbnail] = useState<File | null>(null);
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
@@ -46,9 +41,9 @@ export default function UploadPage() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      title: `Snappit recording - ${new Date().toLocaleDateString()}`,
-      description: "Recorded with Snappit.",
-      visibility: "private",
+      title: createDefaultRecordingTitle(),
+      description: DEFAULT_RECORDING_DESCRIPTION,
+      visibility: "public",
       duration: 0,
     },
   });
@@ -67,6 +62,10 @@ export default function UploadPage() {
           type: "video/webm",
         });
         setRecording(file);
+        pendingVideoIdRef.current = pending.videoId;
+        if (pending.title && !form.getFieldState("title").isDirty) {
+          form.setValue("title", pending.title);
+        }
         setDuration(Math.floor(pending.duration));
         form.setValue("duration", Math.floor(pending.duration));
         const preview = URL.createObjectURL(file);
@@ -94,9 +93,15 @@ export default function UploadPage() {
   useEffect(
     () => () => {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
+    },
+    [objectUrl],
+  );
+
+  useEffect(
+    () => () => {
       if (thumbnailUrl) URL.revokeObjectURL(thumbnailUrl);
     },
-    [objectUrl, thumbnailUrl],
+    [thumbnailUrl],
   );
 
   const selectThumbnail = (file?: File) => {
@@ -105,7 +110,6 @@ export default function UploadPage() {
       toast.error("Choose a JPEG thumbnail under the size limit.");
       return;
     }
-    if (thumbnailUrl) URL.revokeObjectURL(thumbnailUrl);
     setThumbnail(file);
     setThumbnailUrl(URL.createObjectURL(file));
   };
@@ -122,13 +126,17 @@ export default function UploadPage() {
       return;
     }
     try {
-      const begun = await beginRecordingUpload({ ...values, duration });
+      form.clearErrors("root");
+      const begun = await beginRecordingUpload({
+        ...values,
+        duration,
+        videoId: pendingVideoIdRef.current,
+      });
       if (!begun.data || begun.error)
         throw new Error(begun.error || "Could not begin the recording upload.");
-      await Promise.all([
-        putFile(recording, begun.data.rawUploadUrl, "video/webm", "snappit-kind=raw"),
-        putFile(thumbnail, begun.data.thumbnailUploadUrl, "image/jpeg"),
-      ]);
+      pendingVideoIdRef.current = begun.data.videoId;
+      await setPendingUploadVideoId(begun.data.videoId);
+      await uploadRecordingFiles(recording, thumbnail, begun.data);
       const finalized = await finalizeRecordingUpload({
         ...values,
         duration,
@@ -205,6 +213,7 @@ export default function UploadPage() {
                 src={objectUrl ?? undefined}
                 className="aspect-video w-full object-contain"
                 controls
+                controlsList="nodownload"
                 preload="metadata"
                 onLoadedMetadata={(event) => {
                   const value = event.currentTarget.duration;
@@ -253,12 +262,16 @@ export default function UploadPage() {
               />
             </div>
             <div className="my-6 flex items-center gap-4">
-              <Label className="text-base font-medium">Public</Label>
+              <Label htmlFor="public-video" className="text-base font-medium">
+                Public
+              </Label>
               <Controller
                 control={form.control}
                 name="visibility"
                 render={({ field }) => (
                   <Switch
+                    id="public-video"
+                    className="data-checked:bg-sky-100 cursor-pointer"
                     checked={field.value === "public"}
                     onCheckedChange={(checked) => field.onChange(checked ? "public" : "private")}
                   />

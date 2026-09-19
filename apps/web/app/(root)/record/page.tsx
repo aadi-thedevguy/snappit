@@ -4,9 +4,19 @@ import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Monitor, Square, Pause, Play, Save, Circle, AlertCircleIcon } from "lucide-react";
+import {
+  Monitor,
+  Square,
+  Pause,
+  Play,
+  Save,
+  Circle,
+  Download,
+  AlertCircleIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { DEFAULT_VIDEO_CONFIG } from "@/constants";
+import { createDefaultRecordingTitle, formatVideoDownloadFilename } from "@/lib/utils";
 import { buildMediaRecorderOptions } from "@/lib/recordingOptions";
 import { savePendingUpload, clearPendingUpload } from "@/lib/hooks/videoStore";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -25,6 +35,7 @@ export default function Record() {
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+  const [recordingTitle, setRecordingTitle] = useState("");
   const [duration, setDuration] = useState(0);
   const [timer, setTimer] = useState("0:00");
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -116,6 +127,7 @@ export default function Record() {
 
       mediaRecorderRef.current = mediaRecorder;
       mediaRecorder.start(1000);
+      setRecordingTitle(createDefaultRecordingTitle());
       startTimeRef.current = Date.now();
       timerRef.current = setInterval(updateTimer, 1000);
       setState("recording");
@@ -159,6 +171,19 @@ export default function Record() {
     }
   };
 
+  const downloadRecording = () => {
+    if (!recordedBlob?.size) return;
+    const url = URL.createObjectURL(recordedBlob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = formatVideoDownloadFilename(recordingTitle, "webm");
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    // Give the browser time to start reading the Blob before releasing its URL.
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  };
+
   const saveRecording = async () => {
     if (!recordedBlob) return;
     try {
@@ -166,6 +191,7 @@ export default function Record() {
       await savePendingUpload({
         blob: recordedBlob,
         duration,
+        title: recordingTitle,
       });
       setIsRedirecting(false);
       // toast.success("Recording ready", {
@@ -209,6 +235,7 @@ export default function Record() {
               autoPlay
               muted={state === "recording" || state === "paused"}
               controls={state === "stopped"}
+              controlsList="nodownload"
               className="w-full h-full object-contain"
             />
             {state === "idle" && (
@@ -293,20 +320,30 @@ export default function Record() {
           {state === "stopped" && (
             <>
               <Button
+                onClick={downloadRecording}
+                disabled={!recordedBlob?.size}
+                variant="outline"
+                size="lg"
+                className="gap-2 px-4 py-6 rounded-full cursor-pointer"
+              >
+                <Download className="h-5 w-5" />
+                Download
+              </Button>
+              <Button
                 onClick={saveRecording}
                 disabled={isRedirecting}
                 size="lg"
                 className="px-4 py-6 rounded-full bg-sky-100 hover:bg-sky-100/80 cursor-pointer gap-2 shadow-elegant"
               >
                 <Save className="h-5 w-5" />
-                {isRedirecting ? "Saving..." : "Save Recording"}
+                {isRedirecting ? "Saving..." : "Save"}
               </Button>
             </>
           )}
         </div>
         {state === "stopped" && (
           <p className="mb-6 text-center text-sm text-muted-foreground">
-            Save and process your recording to download a seekable MP4.
+            Download the original WebM now, or save and process your recording for a seekable MP4.
           </p>
         )}
       </section>

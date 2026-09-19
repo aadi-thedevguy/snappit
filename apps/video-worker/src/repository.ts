@@ -8,17 +8,39 @@ import { NonRetriableError } from "inngest";
 export function createVideoRepository(db: Database): VideoRepository {
   return {
     async claim(videoId, runId) {
-      // Serialize the read/claim with other database writers; no transaction spans an encode.
       return db.transaction(async (tx) => {
         const [existing] = await tx
-          .select()
+          .select({
+            id: videos.id,
+            userId: videos.userId,
+            processingStatus: videos.processingStatus,
+            processedMimeType: videos.processedMimeType,
+            processingRunId: videos.processingRunId,
+          })
           .from(videos)
           .where(eq(videos.id, videoId))
           .for("update");
+
         if (!existing) return;
+
+        /*
+         * Check this BEFORE changing the status.
+         *
+         * An upload that hasn't been finalized must never be claimed
+         * by the processing worker.
+         */
+        if (existing.processingStatus === "uploading") {
+          throw new NonRetriableError("Recording upload is not finalized");
+        }
+
         const alreadyReady =
           existing.processingStatus === "ready" &&
           existing.processedMimeType === PROCESSED_VIDEO_CONTENT_TYPE;
+
+        /*
+         * Prevent another Inngest run from taking ownership of a video
+         * that is currently being processed.
+         */
         if (
           !alreadyReady &&
           existing.processingStatus === "processing" &&
@@ -27,6 +49,7 @@ export function createVideoRepository(db: Database): VideoRepository {
         ) {
           throw new NonRetriableError("Video is owned by another processing run");
         }
+
         if (!alreadyReady) {
           await tx
             .update(videos)
@@ -38,17 +61,17 @@ export function createVideoRepository(db: Database): VideoRepository {
             })
             .where(eq(videos.id, existing.id));
         }
-        if (existing.processingStatus === "uploading")
-          throw new NonRetriableError("Recording upload is not finalized");
+
         return {
           id: existing.id,
           userId: existing.userId,
-          processingStatus: existing.processingStatus,
+          processingStatus: alreadyReady ? existing.processingStatus : "processing",
           alreadyReady,
           runId,
         };
       });
     },
+
     async ready(video) {
       const updated = await db
         .update(videos)
@@ -65,9 +88,13 @@ export function createVideoRepository(db: Database): VideoRepository {
             eq(videos.processingRunId, video.runId),
           ),
         )
-        .returning({ id: videos.id });
+        .returning({
+          id: videos.id,
+        });
+
       return updated.length > 0;
     },
+
     async fail(videoId, runId) {
       // A late failure must never replace a completed or newly queued upload.
       await db

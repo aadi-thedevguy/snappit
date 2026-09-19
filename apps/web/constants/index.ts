@@ -12,6 +12,10 @@ export const MANIFEST_URL = `${SITE_URL}/assets/manifest.json`;
 // Size Constants
 export { MAX_VIDEO_SIZE } from "@snappit/validation";
 export const MAX_THUMBNAIL_SIZE = 10 * 1024 * 1024; //10mb
+export const PUBLIC_VIDEO_ID_LENGTH = 9;
+export const PUBLIC_VIDEO_ID_ALPHABET =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+export const PUBLIC_VIDEO_ID_MAX_ATTEMPTS = 5;
 
 export const DEFAULT_AVATAR_URL = "https://api.dicebear.com/9.x/avataaars-neutral/svg";
 
@@ -32,3 +36,6 @@ export const DEFAULT_RECORDING_CONFIG = {
   audioBitsPerSecond: 128000,
   videoBitsPerSecond: 2500000,
 };
+
+export const DEFAULT_RECORDING_DESCRIPTION =
+  "This video has been recorded by Snappit. Generate yours at snappit.adityakhare.com";

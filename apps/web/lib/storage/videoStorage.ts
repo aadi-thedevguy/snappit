@@ -1,6 +1,7 @@
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { getSignedUrl as getCFRSignedUrl } from "@aws-sdk/cloudfront-signer";
+import { formatVideoDownloadFilename } from "@/lib/utils";
 import { CDN } from "@/constants";
 import { formatPrivateKey, getEnv } from "@/lib/utils";
 
@@ -36,19 +37,22 @@ export function createCloudFrontVideoUrl(storageKey: string) {
 export async function createVideoDownloadUrl(
   storageKey: string,
   contentType: "video/mp4" | "video/webm",
-  title?: string,
+  title: string,
 ) {
   const extension = contentType === "video/mp4" ? "mp4" : "webm";
-  const filename = title
-    ? encodeURIComponent(`${title}.${extension}`)
-    : `snappit-video.${extension}`;
+  const filename = formatVideoDownloadFilename(title, extension);
+  const asciiFilename = filename.replace(/[^\x20-\x7E]/g, "_");
+  const encodedFilename = encodeURIComponent(filename).replace(
+    /['()*]/g,
+    (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
 
   return getSignedUrl(
     s3,
     new GetObjectCommand({
       Bucket: S3_BUCKET_NAME,
       Key: getVideoObjectKey(storageKey),
-      ResponseContentDisposition: `attachment; filename="${filename}"`,
+      ResponseContentDisposition: `attachment; filename="${asciiFilename}"; filename*=UTF-8''${encodedFilename}`,
       ResponseContentType: contentType,
     }),
     { expiresIn: 600 },

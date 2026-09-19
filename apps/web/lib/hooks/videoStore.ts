@@ -6,6 +6,8 @@
 export interface PendingUpload {
   blob: Blob;
   duration: number;
+  title?: string;
+  videoId?: string;
 }
 
 const DB_NAME = "snappit-temp";
@@ -25,7 +27,7 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
-export async function savePendingUpload(data: { blob: Blob; duration: number }): Promise<void> {
+export async function savePendingUpload(data: PendingUpload): Promise<void> {
   const arrayBuffer = await data.blob.arrayBuffer();
   const mimeType = data.blob.type;
 
@@ -37,6 +39,8 @@ export async function savePendingUpload(data: { blob: Blob; duration: number }):
         buffer: arrayBuffer,
         type: mimeType,
         duration: data.duration,
+        title: data.title,
+        videoId: data.videoId,
       },
       KEY,
     );
@@ -45,10 +49,7 @@ export async function savePendingUpload(data: { blob: Blob; duration: number }):
   });
 }
 
-export async function getPendingUpload(): Promise<{
-  blob: Blob;
-  duration: number;
-} | null> {
+export async function getPendingUpload(): Promise<PendingUpload | null> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readonly");
@@ -59,9 +60,37 @@ export async function getPendingUpload(): Promise<{
       const blob = new Blob([result.buffer || result.blob], {
         type: result.type || "video/webm",
       });
-      resolve({ blob, duration: result.duration });
+      resolve({ blob, duration: result.duration, title: result.title, videoId: result.videoId });
     };
     req.onerror = () => reject(req.error);
+  });
+}
+
+export async function setPendingUploadVideoId(videoId: string): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.get(KEY);
+    req.onsuccess = () => {
+      if (!req.result) {
+        tx.abort();
+        return;
+      }
+      store.put({ ...req.result, videoId }, KEY);
+    };
+    tx.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+    tx.onabort = () => {
+      db.close();
+      reject(tx.error ?? new Error("Pending recording is missing."));
+    };
+    tx.onerror = () => {
+      db.close();
+      reject(tx.error);
+    };
   });
 }
 

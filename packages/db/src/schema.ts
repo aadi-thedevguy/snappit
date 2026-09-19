@@ -73,9 +73,6 @@ export const videos = createTable(
     publicVideoId: text("public_video_id").unique().notNull(),
     title: text("title").notNull(),
     description: text("description").notNull(),
-    videoId: text("video_id"),
-    // Retained for the older app; new media paths are derived from owner and UUID.
-    thumbnailId: text("thumbnail_id"),
     rawMimeType: text("raw_mime_type"),
     rawSize: integer("raw_size"),
     processedMimeType: text("processed_mime_type"),
