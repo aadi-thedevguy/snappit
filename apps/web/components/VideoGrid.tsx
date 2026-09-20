@@ -196,7 +196,7 @@ function VideoCard({
               </DropdownMenuItem>
               {canDownloadVideo(recording) && (
                 <DropdownMenuItem onClick={handleDownload} className="text-gray-100">
-                  <Download className="mr-2 h-4 w-4" /> Download video
+                  <Download className="mr-2 h-4 w-4" /> Download
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem onClick={onEdit} className="text-sky-100">
